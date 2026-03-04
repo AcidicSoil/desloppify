@@ -14,7 +14,9 @@ from desloppify.intelligence.review.context import (
     build_review_context,
     serialize_context,
 )
-from desloppify.intelligence.review.context_holistic import build_holistic_context
+from desloppify.intelligence.review.context_holistic.orchestrator import (
+    build_holistic_context,
+)
 from desloppify.intelligence.review.context_signals.ai import gather_ai_debt_signals
 from desloppify.intelligence.review.context_signals.auth import gather_auth_context
 from desloppify.intelligence.review.context_signals.migration import (

@@ -1,14 +1,14 @@
-"""Tests for fix command helpers."""
+"""Tests for autofix command helpers."""
 
-import desloppify.app.commands.fix.apply_flow as fix_apply_mod
-from desloppify.app.commands.fix.apply_flow import (
+import desloppify.app.commands.autofix.apply_flow as fix_apply_mod
+from desloppify.app.commands.autofix.apply_flow import (
     _SKIP_REASON_LABELS,
     _print_fix_retro,
     _print_fix_summary,
     _resolve_fixer_results,
 )
-from desloppify.app.commands.fix.cmd import (
-    cmd_fix,
+from desloppify.app.commands.autofix.cmd import (
+    cmd_autofix,
 )
 from desloppify.languages._framework.base.types import FixerConfig, FixResult
 
@@ -20,8 +20,8 @@ from desloppify.languages._framework.base.types import FixerConfig, FixResult
 class TestFixModuleSanity:
     """Verify the module imports and has expected exports."""
 
-    def test_cmd_fix_callable(self):
-        assert callable(cmd_fix)
+    def test_cmd_autofix_callable(self):
+        assert callable(cmd_autofix)
 
     def test_fix_result_is_dataclass(self):
         r = FixResult(entries=[])
@@ -234,8 +234,8 @@ class TestFixNarrativeReminders:
     def test_report_dry_run_uses_fix_command(self, monkeypatch, capsys):
         from types import SimpleNamespace
 
-        import desloppify.app.commands.fix.apply_flow as fix_mod
-        import desloppify.intelligence.narrative as narrative_mod
+        import desloppify.app.commands.autofix.apply_flow as fix_mod
+        import desloppify.intelligence.narrative.core as narrative_mod
         from desloppify.app.commands.helpers.runtime import CommandRuntime
 
         captured_kwargs = {}

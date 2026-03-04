@@ -338,14 +338,14 @@ class TestClassExtraction:
 
 class TestGoImportResolver:
     def test_stdlib_returns_none(self):
-        from desloppify.languages._framework.treesitter._imports import (
+        from desloppify.languages._framework.treesitter._import_resolvers import (
             resolve_go_import,
         )
 
         assert resolve_go_import("fmt", "/src/main.go", "/src") is None
 
     def test_external_pkg_returns_none(self, tmp_path):
-        from desloppify.languages._framework.treesitter._imports import (
+        from desloppify.languages._framework.treesitter._import_resolvers import (
             resolve_go_import,
         )
 
@@ -353,8 +353,10 @@ class TestGoImportResolver:
         assert resolve_go_import("github.com/foo/bar", "/src/main.go", str(tmp_path)) is None
 
     def test_local_import_resolves(self, tmp_path):
-        from desloppify.languages._framework.treesitter._imports import (
+        from desloppify.languages._framework.treesitter._import_cache import (
             reset_import_cache,
+        )
+        from desloppify.languages._framework.treesitter._import_resolvers import (
             resolve_go_import,
         )
 
@@ -378,14 +380,14 @@ class TestGoImportResolver:
 
 class TestRustImportResolver:
     def test_external_crate_returns_none(self):
-        from desloppify.languages._framework.treesitter._imports import (
+        from desloppify.languages._framework.treesitter._import_resolvers import (
             resolve_rust_import,
         )
 
         assert resolve_rust_import("std::io::Read", "/src/main.rs", "/project") is None
 
     def test_crate_import_resolves(self, tmp_path):
-        from desloppify.languages._framework.treesitter._imports import (
+        from desloppify.languages._framework.treesitter._import_resolvers import (
             resolve_rust_import,
         )
 
@@ -400,7 +402,7 @@ class TestRustImportResolver:
 
 class TestRubyImportResolver:
     def test_relative_require(self, tmp_path):
-        from desloppify.languages._framework.treesitter._imports import (
+        from desloppify.languages._framework.treesitter._import_resolvers import (
             resolve_ruby_import,
         )
 
@@ -412,7 +414,7 @@ class TestRubyImportResolver:
         assert result.endswith("helper.rb")
 
     def test_absolute_require_in_lib(self, tmp_path):
-        from desloppify.languages._framework.treesitter._imports import (
+        from desloppify.languages._framework.treesitter._import_resolvers import (
             resolve_ruby_import,
         )
 
@@ -427,7 +429,7 @@ class TestRubyImportResolver:
 
 class TestCxxIncludeResolver:
     def test_relative_include(self, tmp_path):
-        from desloppify.languages._framework.treesitter._imports import (
+        from desloppify.languages._framework.treesitter._import_resolvers import (
             resolve_cxx_include,
         )
 
@@ -439,7 +441,7 @@ class TestCxxIncludeResolver:
         assert result.endswith("local.h")
 
     def test_nonexistent_returns_none(self, tmp_path):
-        from desloppify.languages._framework.treesitter._imports import (
+        from desloppify.languages._framework.treesitter._import_resolvers import (
             resolve_cxx_include,
         )
 
@@ -454,8 +456,10 @@ class TestCxxIncludeResolver:
 
 class TestDepGraphBuilder:
     def test_go_dep_graph(self, tmp_path):
-        from desloppify.languages._framework.treesitter._imports import (
+        from desloppify.languages._framework.treesitter._import_cache import (
             reset_import_cache,
+        )
+        from desloppify.languages._framework.treesitter._import_graph import (
             ts_build_dep_graph,
         )
         from desloppify.languages._framework.treesitter._specs import GO_SPEC
@@ -481,7 +485,7 @@ class TestDepGraphBuilder:
         reset_import_cache()
 
     def test_no_import_query_returns_empty(self, tmp_path):
-        from desloppify.languages._framework.treesitter._imports import (
+        from desloppify.languages._framework.treesitter._import_graph import (
             ts_build_dep_graph,
         )
         from desloppify.languages._framework.treesitter._specs import BASH_SPEC
@@ -802,7 +806,7 @@ class TestParseTreeCache:
 
 class TestBashSourceResolver:
     def test_resolve_relative(self, tmp_path):
-        from desloppify.languages._framework.treesitter._imports import (
+        from desloppify.languages._framework.treesitter._import_resolvers import (
             resolve_bash_source,
         )
 
@@ -814,7 +818,7 @@ class TestBashSourceResolver:
         assert result.endswith("helper.sh")
 
     def test_resolve_with_ext_added(self, tmp_path):
-        from desloppify.languages._framework.treesitter._imports import (
+        from desloppify.languages._framework.treesitter._import_resolvers import (
             resolve_bash_source,
         )
 
@@ -826,7 +830,7 @@ class TestBashSourceResolver:
         assert result.endswith("lib.sh")
 
     def test_nonexistent_returns_none(self, tmp_path):
-        from desloppify.languages._framework.treesitter._imports import (
+        from desloppify.languages._framework.treesitter._import_resolvers import (
             resolve_bash_source,
         )
 
@@ -838,7 +842,7 @@ class TestBashSourceResolver:
 
 class TestPerlImportResolver:
     def test_local_module(self, tmp_path):
-        from desloppify.languages._framework.treesitter._imports import (
+        from desloppify.languages._framework.treesitter._import_resolvers import (
             resolve_perl_import,
         )
 
@@ -853,7 +857,7 @@ class TestPerlImportResolver:
         assert result.endswith("User.pm")
 
     def test_pragma_skipped(self):
-        from desloppify.languages._framework.treesitter._imports import (
+        from desloppify.languages._framework.treesitter._import_resolvers import (
             resolve_perl_import,
         )
 
@@ -861,7 +865,7 @@ class TestPerlImportResolver:
         assert resolve_perl_import("warnings", "/src/app.pl", "/src") is None
 
     def test_stdlib_prefix_skipped(self):
-        from desloppify.languages._framework.treesitter._imports import (
+        from desloppify.languages._framework.treesitter._import_resolvers import (
             resolve_perl_import,
         )
 
@@ -871,7 +875,7 @@ class TestPerlImportResolver:
 
 class TestZigImportResolver:
     def test_local_import(self, tmp_path):
-        from desloppify.languages._framework.treesitter._imports import (
+        from desloppify.languages._framework.treesitter._import_resolvers import (
             resolve_zig_import,
         )
 
@@ -883,7 +887,7 @@ class TestZigImportResolver:
         assert result.endswith("utils.zig")
 
     def test_std_skipped(self):
-        from desloppify.languages._framework.treesitter._imports import (
+        from desloppify.languages._framework.treesitter._import_resolvers import (
             resolve_zig_import,
         )
 
@@ -893,7 +897,7 @@ class TestZigImportResolver:
 
 class TestHaskellImportResolver:
     def test_local_module(self, tmp_path):
-        from desloppify.languages._framework.treesitter._imports import (
+        from desloppify.languages._framework.treesitter._import_resolvers import (
             resolve_haskell_import,
         )
 
@@ -908,7 +912,7 @@ class TestHaskellImportResolver:
         assert result.endswith("Module.hs")
 
     def test_stdlib_skipped(self):
-        from desloppify.languages._framework.treesitter._imports import (
+        from desloppify.languages._framework.treesitter._import_resolvers import (
             resolve_haskell_import,
         )
 
@@ -919,7 +923,7 @@ class TestHaskellImportResolver:
 
 class TestErlangIncludeResolver:
     def test_relative_include(self, tmp_path):
-        from desloppify.languages._framework.treesitter._imports import (
+        from desloppify.languages._framework.treesitter._import_resolvers import (
             resolve_erlang_include,
         )
 
@@ -931,7 +935,7 @@ class TestErlangIncludeResolver:
         assert result.endswith("header.hrl")
 
     def test_include_dir(self, tmp_path):
-        from desloppify.languages._framework.treesitter._imports import (
+        from desloppify.languages._framework.treesitter._import_resolvers import (
             resolve_erlang_include,
         )
 
@@ -948,7 +952,7 @@ class TestErlangIncludeResolver:
 
 class TestOcamlImportResolver:
     def test_local_module(self, tmp_path):
-        from desloppify.languages._framework.treesitter._imports import (
+        from desloppify.languages._framework.treesitter._import_resolvers import (
             resolve_ocaml_import,
         )
 
@@ -963,7 +967,7 @@ class TestOcamlImportResolver:
         assert result.endswith("mymodule.ml")
 
     def test_stdlib_skipped(self):
-        from desloppify.languages._framework.treesitter._imports import (
+        from desloppify.languages._framework.treesitter._import_resolvers import (
             resolve_ocaml_import,
         )
 
@@ -973,7 +977,7 @@ class TestOcamlImportResolver:
 
 class TestFsharpImportResolver:
     def test_local_module(self, tmp_path):
-        from desloppify.languages._framework.treesitter._imports import (
+        from desloppify.languages._framework.treesitter._import_resolvers import (
             resolve_fsharp_import,
         )
 
@@ -988,7 +992,7 @@ class TestFsharpImportResolver:
         assert result.endswith("MyModule.fs")
 
     def test_stdlib_skipped(self):
-        from desloppify.languages._framework.treesitter._imports import (
+        from desloppify.languages._framework.treesitter._import_resolvers import (
             resolve_fsharp_import,
         )
 
@@ -998,7 +1002,7 @@ class TestFsharpImportResolver:
 
 class TestSwiftImportResolver:
     def test_local_module_path(self, tmp_path):
-        from desloppify.languages._framework.treesitter._imports import (
+        from desloppify.languages._framework.treesitter._import_resolvers import (
             resolve_swift_import,
         )
 
@@ -1015,7 +1019,7 @@ class TestSwiftImportResolver:
         assert result.endswith("Client.swift")
 
     def test_external_module_returns_none(self):
-        from desloppify.languages._framework.treesitter._imports import (
+        from desloppify.languages._framework.treesitter._import_resolvers import (
             resolve_swift_import,
         )
 
@@ -1024,7 +1028,7 @@ class TestSwiftImportResolver:
 
 class TestJsImportResolver:
     def test_relative_import(self, tmp_path):
-        from desloppify.languages._framework.treesitter._imports import (
+        from desloppify.languages._framework.treesitter._import_resolvers import (
             resolve_js_import,
         )
 
@@ -1036,7 +1040,7 @@ class TestJsImportResolver:
         assert result.endswith("utils.js")
 
     def test_npm_package_returns_none(self):
-        from desloppify.languages._framework.treesitter._imports import (
+        from desloppify.languages._framework.treesitter._import_resolvers import (
             resolve_js_import,
         )
 
@@ -1044,7 +1048,7 @@ class TestJsImportResolver:
         assert resolve_js_import("lodash/fp", "/src/main.js", "/src") is None
 
     def test_jsx_extension(self, tmp_path):
-        from desloppify.languages._framework.treesitter._imports import (
+        from desloppify.languages._framework.treesitter._import_resolvers import (
             resolve_js_import,
         )
 
@@ -1056,7 +1060,7 @@ class TestJsImportResolver:
         assert result.endswith("App.jsx")
 
     def test_index_resolution(self, tmp_path):
-        from desloppify.languages._framework.treesitter._imports import (
+        from desloppify.languages._framework.treesitter._import_resolvers import (
             resolve_js_import,
         )
 

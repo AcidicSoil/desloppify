@@ -1,4 +1,4 @@
-"""Fix command option and fixer resolution helpers."""
+"""Autofix command option and fixer resolution helpers."""
 
 from __future__ import annotations
 

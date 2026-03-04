@@ -27,7 +27,7 @@ from desloppify.app.commands.review.importing.cmd import (
     do_validate_import as _do_validate_import,
 )
 from desloppify.app.commands.review.prepare import do_prepare as _do_prepare
-from desloppify.app.commands.review.runtime import setup_lang_concrete as _setup_lang
+from desloppify.app.commands.review.runtime.setup import setup_lang_concrete as _setup_lang
 from desloppify.base.exception_sets import CommandError
 from desloppify.engine.policy.zones import Zone, ZoneRule
 from desloppify.intelligence.review import (
@@ -126,7 +126,7 @@ class TestCmdReviewPrepare:
 
         with (
             patch(
-                "desloppify.app.commands.review.runtime.setup_lang_concrete",
+                "desloppify.app.commands.review.prepare.setup_lang_concrete",
                 return_value=(mock_lang_with_zones, file_list),
             ),
             patch("desloppify.app.commands.review.prepare.write_query", capture_query),
@@ -201,11 +201,11 @@ class TestCmdReviewPrepare:
             return {"reminders": [{"type": "review_stale", "message": "Design review is stale."}]}
 
         with patch(
-            "desloppify.app.commands.review.runtime.setup_lang_concrete",
+            "desloppify.app.commands.review.prepare.setup_lang_concrete",
             return_value=(mock_lang_with_zones, file_list),
         ), \
              patch("desloppify.app.commands.review.prepare.write_query", lambda _data: None), \
-             patch("desloppify.intelligence.narrative.compute_narrative", _fake_narrative):
+             patch("desloppify.intelligence.narrative.core.compute_narrative", _fake_narrative):
             _do_prepare(
                 args,
                 empty_state,
@@ -250,7 +250,7 @@ class TestCmdReviewPrepare:
 
         with (
             patch(
-                "desloppify.app.commands.review.runtime.setup_lang_concrete",
+                "desloppify.app.commands.review.prepare.setup_lang_concrete",
                 return_value=(mock_lang_with_zones, file_list),
             ),
             patch(
@@ -767,7 +767,7 @@ class TestCmdReviewPrepare:
 
         with (
             patch(
-                "desloppify.app.commands.review.runtime.setup_lang_concrete",
+                "desloppify.app.commands.review.batch.orchestrator._setup_lang",
                 return_value=(mock_lang_with_zones, file_list),
             ),
             patch(

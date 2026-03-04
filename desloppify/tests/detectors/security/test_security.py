@@ -15,7 +15,7 @@ from desloppify.engine._scoring.policy.core import (
     SECURITY_EXCLUDED_ZONES,
 )
 from desloppify.engine._scoring.results.core import compute_dimension_scores
-from desloppify.engine.detectors.security import detect_security_issues
+from desloppify.engine.detectors.security.detector import detect_security_issues
 from desloppify.engine.policy.zones import ZONE_POLICIES, FileZoneMap, Zone
 from desloppify.intelligence.narrative.headline import compute_headline
 from desloppify.languages.typescript.detectors.security import detect_ts_security

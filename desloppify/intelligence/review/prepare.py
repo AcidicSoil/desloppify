@@ -38,7 +38,9 @@ from desloppify.intelligence.review.context import (
     importer_count,
     serialize_context,
 )
-from desloppify.intelligence.review.context_holistic import build_holistic_context
+from desloppify.intelligence.review.context_holistic.orchestrator import (
+    build_holistic_context,
+)
 from desloppify.intelligence.review.dimensions.data import load_dimensions_for_lang
 from desloppify.intelligence.review.dimensions.lang import get_lang_guidance
 from desloppify.intelligence.review.dimensions.selection import resolve_dimensions

@@ -523,7 +523,7 @@ class TestFixParser:
             "desloppify.app.cli_support.parser_groups_admin.get_lang"
         ) as mock_get_lang:
             mock_get_lang.side_effect = ImportError()
-            parser_admin_mod._add_fix_parser(sub, ["python"])
+            parser_admin_mod._add_autofix_parser(sub, ["python"])
 
         args = parser.parse_args(
             ["autofix", "unused", "--path", "src", "--dry-run"]

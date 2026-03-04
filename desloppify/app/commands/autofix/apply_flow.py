@@ -1,4 +1,4 @@
-"""Apply and reporting helpers for fix command flows."""
+"""Apply and reporting helpers for autofix command flows."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from desloppify.app.commands.helpers.runtime import command_runtime
 from desloppify.app.commands.helpers.state import state_path
 from desloppify.base.discovery.file_paths import rel
 from desloppify.base.output.terminal import colorize
-from desloppify.intelligence import narrative as narrative_mod
+import desloppify.intelligence.narrative.core as narrative_mod
 from desloppify.languages._framework.base.types import FixResult
 
 from .options import _COMMAND_POST_FIX

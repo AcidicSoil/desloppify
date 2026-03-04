@@ -6,12 +6,13 @@ import pytest
 
 import desloppify.app.commands.resolve.cmd as resolve_mod
 import desloppify.app.commands.resolve.selection as resolve_selection_mod
-import desloppify.app.commands.resolve.suppress as resolve_suppress_mod
+import desloppify.app.commands.suppress as suppress_mod
 import desloppify.cli as cli_mod
 import desloppify.engine.plan as plan_mod
-import desloppify.intelligence.narrative as narrative_mod
+import desloppify.intelligence.narrative.core as narrative_mod
 import desloppify.state as state_mod
-from desloppify.app.commands.resolve.cmd import cmd_resolve, cmd_suppress_pattern
+from desloppify.app.commands.resolve.cmd import cmd_resolve
+from desloppify.app.commands.suppress import cmd_suppress
 from desloppify.base.exception_sets import CommandError
 from desloppify.engine._work_queue.core import ATTEST_EXAMPLE
 
@@ -32,16 +33,16 @@ class TestResolveModuleSanity:
     def test_cmd_resolve_callable(self):
         assert callable(cmd_resolve)
 
-    def test_cmd_suppress_pattern_callable(self):
-        assert callable(cmd_suppress_pattern)
+    def test_cmd_suppress_callable(self):
+        assert callable(cmd_suppress)
 
     def test_cmd_resolve_signature(self):
         sig = inspect.signature(cmd_resolve)
         params = list(sig.parameters.keys())
         assert params == ["args"]
 
-    def test_cmd_suppress_pattern_signature(self):
-        sig = inspect.signature(cmd_suppress_pattern)
+    def test_cmd_suppress_signature(self):
+        sig = inspect.signature(cmd_suppress)
         params = list(sig.parameters.keys())
         assert params == ["args"]
 
@@ -359,7 +360,7 @@ class TestCmdSuppress:
             path = "."
 
         with pytest.raises(CommandError) as exc_info:
-            cmd_suppress_pattern(FakeArgs())
+            cmd_suppress(FakeArgs())
         assert exc_info.value.exit_code == 1
         err = capsys.readouterr().err
         assert "Suppress requires --attest" in err
@@ -376,7 +377,7 @@ class TestCmdSuppress:
         )
         monkeypatch.setattr(state_mod, "remove_ignored_issues", lambda state, pattern: 0)
         monkeypatch.setattr(
-            resolve_suppress_mod, "_save_config_or_exit", lambda _config: None
+            suppress_mod, "_save_config_or_exit", lambda _config: None
         )
         monkeypatch.setattr(resolve_mod, "resolve_lang", lambda args: None)
 
@@ -388,6 +389,6 @@ class TestCmdSuppress:
             path = "."
 
         with pytest.raises(CommandError) as exc_info:
-            cmd_suppress_pattern(FakeArgs())
+            cmd_suppress(FakeArgs())
         assert exc_info.value.exit_code == 1
         assert "could not save state" in exc_info.value.message

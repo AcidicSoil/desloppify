@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from desloppify.engine._plan.stale_dimensions import review_issue_snapshot_hash
 from desloppify.engine.plan import save_plan
-from desloppify.engine.planning.triage import review_issue_snapshot_hash
 from desloppify.state import utc_now
 
 

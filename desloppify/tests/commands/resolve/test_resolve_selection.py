@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from desloppify.app.commands.resolve.selection import (
+from desloppify.app.commands.helpers.attestation import (
     _MIN_NOTE_LENGTH,
     show_note_length_requirement,
     validate_note_length,

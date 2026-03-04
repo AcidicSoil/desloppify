@@ -7,7 +7,7 @@ import pytest
 import desloppify.app.commands.scan.artifacts as scan_artifacts_mod
 import desloppify.app.commands.scan.cmd as scan_cmd_mod
 import desloppify.app.commands.scan.preflight as scan_preflight_mod
-import desloppify.intelligence.narrative as narrative_mod
+import desloppify.intelligence.narrative.core as narrative_mod
 import desloppify.languages as lang_mod
 from desloppify.app.commands.scan.helpers import (
     _audit_excluded_dirs,
@@ -712,7 +712,7 @@ class TestShowPostScanAnalysis:
 
     def test_subjective_score_nudge_removed_from_post_scan(self, monkeypatch, capsys):
         """Subjective score nudges were removed — verify they no longer appear."""
-        import desloppify.intelligence.narrative as narrative_mod
+        import desloppify.intelligence.narrative.core as narrative_mod
         monkeypatch.setattr(narrative_mod, "compute_narrative",
                             lambda state, **kw: {"headline": None, "actions": []})
 
@@ -739,7 +739,7 @@ class TestShowPostScanAnalysis:
 
     def test_reminders_and_plan_fields_removed_from_scan(self, monkeypatch, capsys):
         """Reminders and narrative plan fields are no longer shown in scan output."""
-        import desloppify.intelligence.narrative as narrative_mod
+        import desloppify.intelligence.narrative.core as narrative_mod
         monkeypatch.setattr(
             narrative_mod,
             "compute_narrative",

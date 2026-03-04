@@ -1,11 +1,11 @@
-"""fix command: auto-fix mechanical issues with fixer registry and pipeline."""
+"""autofix command: auto-fix mechanical issues with fixer registry and pipeline."""
 
 from __future__ import annotations
 
 import argparse
 from pathlib import Path
 
-from desloppify.app.commands._fix_preview import show_fix_dry_run_samples
+from desloppify.app.commands.autofix.preview import show_fix_dry_run_samples
 from desloppify.base.output.terminal import colorize
 
 from .apply_flow import (
@@ -18,7 +18,7 @@ from .apply_flow import (
 from .options import _load_fixer
 
 
-def cmd_fix(args: argparse.Namespace) -> None:
+def cmd_autofix(args: argparse.Namespace) -> None:
     """Auto-fix mechanical issues."""
     fixer_name = args.fixer
 

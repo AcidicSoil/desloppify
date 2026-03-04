@@ -10,7 +10,7 @@ from desloppify.languages._framework.base.shared_phases import (
     run_coupling_phase,
     run_structural_phase,
 )
-from desloppify.languages._framework.runtime import LangRun
+from desloppify.languages._framework.base.types import LangRuntimeContract
 from desloppify.languages.gdscript.detectors.deps import build_dep_graph
 
 GDSCRIPT_COMPLEXITY_SIGNALS = [
@@ -36,7 +36,7 @@ GDSCRIPT_COMPLEXITY_SIGNALS = [
 ]
 
 
-def phase_structural(path: Path, lang: LangRun) -> tuple[list[dict], dict[str, int]]:
+def phase_structural(path: Path, lang: LangRuntimeContract) -> tuple[list[dict], dict[str, int]]:
     """Run structural detectors (large/complexity/flat directories)."""
     return run_structural_phase(
         path,
@@ -46,7 +46,7 @@ def phase_structural(path: Path, lang: LangRun) -> tuple[list[dict], dict[str, i
     )
 
 
-def phase_coupling(path: Path, lang: LangRun) -> tuple[list[dict], dict[str, int]]:
+def phase_coupling(path: Path, lang: LangRuntimeContract) -> tuple[list[dict], dict[str, int]]:
     """Run coupling-oriented detectors against GDScript references."""
     return run_coupling_phase(
         path,

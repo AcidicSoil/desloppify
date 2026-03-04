@@ -11,7 +11,7 @@ from desloppify.engine.policy.zones import adjust_potential, filter_entries
 from desloppify.languages._framework.issue_factories import (
     make_unused_issues,
 )
-from desloppify.languages._framework.runtime import LangRun
+from desloppify.languages._framework.base.types import LangRuntimeContract
 from desloppify.languages.python.detectors import (
     responsibility_cohesion as cohesion_detector_mod,
 )
@@ -106,7 +106,7 @@ PY_ENTRY_PATTERNS = [
 ]
 
 
-def phase_unused(path: Path, lang: LangRun) -> tuple[list[Issue], dict[str, int]]:
+def phase_unused(path: Path, lang: LangRuntimeContract) -> tuple[list[Issue], dict[str, int]]:
     entries, total_files = unused_detector_mod.detect_unused(path)
     return make_unused_issues(entries, log), {
         "unused": adjust_potential(lang.zone_map, total_files),
@@ -114,7 +114,7 @@ def phase_unused(path: Path, lang: LangRun) -> tuple[list[Issue], dict[str, int]
 
 
 def phase_structural(
-    path: Path, lang: LangRun
+    path: Path, lang: LangRuntimeContract
 ) -> tuple[list[Issue], dict[str, int]]:
     return run_phase_structural(
         path,
@@ -125,12 +125,12 @@ def phase_structural(
     )
 
 
-def phase_coupling(path: Path, lang: LangRun) -> tuple[list[Issue], dict[str, int]]:
+def phase_coupling(path: Path, lang: LangRuntimeContract) -> tuple[list[Issue], dict[str, int]]:
     return run_phase_coupling(path, lang, log_fn=log)
 
 
 def phase_responsibility_cohesion(
-    path: Path, lang: LangRun
+    path: Path, lang: LangRuntimeContract
 ) -> tuple[list[Issue], dict[str, int]]:
     entries, candidates = cohesion_detector_mod.detect_responsibility_cohesion(path)
     entries = filter_entries(lang.zone_map, entries, "responsibility_cohesion")
@@ -171,7 +171,7 @@ def phase_responsibility_cohesion(
     }
 
 def phase_uncalled_functions(
-    path: Path, lang: LangRun
+    path: Path, lang: LangRuntimeContract
 ) -> tuple[list[Issue], dict[str, int]]:
     """Detect underscore-prefixed top-level functions with zero references."""
     entries, total = uncalled_detector_mod.detect_uncalled_functions(
@@ -200,7 +200,7 @@ def phase_uncalled_functions(
 
 
 def phase_unused_enums(
-    path: Path, lang: LangRun
+    path: Path, lang: LangRuntimeContract
 ) -> tuple[list[Issue], dict[str, int]]:
     """Detect enum classes with zero external imports."""
     entries, total = unused_enums_mod.detect_unused_enums(path)

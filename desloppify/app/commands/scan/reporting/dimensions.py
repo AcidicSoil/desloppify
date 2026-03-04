@@ -23,7 +23,7 @@ from desloppify.engine.planning.scorecard_projection import (
     scorecard_dimension_rows,
     scorecard_subjective_entries,
 )
-from desloppify.intelligence import narrative as narrative_mod
+import desloppify.intelligence.narrative._constants as narrative_constants_mod
 
 from . import presentation as presentation_mod
 
@@ -33,7 +33,7 @@ def show_detector_progress(state: dict):
     return presentation_mod.show_detector_progress(
         state,
         state_mod=state_mod,
-        narrative_mod=narrative_mod,
+        narrative_mod=narrative_constants_mod,
         registry_mod=registry_mod,
         colorize_fn=colorize,
     )

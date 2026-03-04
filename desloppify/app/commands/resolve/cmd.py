@@ -23,11 +23,12 @@ from desloppify.engine.plan import (
     purge_uncommitted_ids,
     save_plan,
 )
-from desloppify.intelligence import narrative as narrative_mod
+import desloppify.intelligence.narrative.core as narrative_mod
 from desloppify.state import coerce_assessment_score
 
+from desloppify.app.commands.helpers.persist import _save_state_or_exit
+
 from .apply import _resolve_all_patterns, _write_resolve_query_entry
-from .persist import _save_state_or_exit
 from .queue_guard import _check_queue_order_guard
 from .render import (
     _print_next_command,
@@ -36,15 +37,17 @@ from .render import (
     _print_wontfix_batch_warning,
     render_commit_guidance,
 )
+from desloppify.app.commands.helpers.attestation import (
+    show_note_length_requirement,
+    validate_note_length,
+)
+
 from .selection import (
     ResolveQueryContext,
     _enforce_batch_wontfix_confirmation,
     _previous_score_snapshot,
     _validate_resolve_inputs,
-    show_note_length_requirement,
-    validate_note_length,
 )
-from .suppress import cmd_suppress_pattern
 
 _logger = logging.getLogger(__name__)
 
@@ -186,10 +189,10 @@ def cmd_resolve(args: argparse.Namespace) -> None:
             "Hey — nice, on to the next one. Run `desloppify next`"
             " to pick up your next task. If this doesn't seem like"
             " the right thing to work on, run `desloppify plan show`"
-            " to see the full queue and reorder if needed. Please"
-            " don't stop until you're done — unless I've told you"
-            " otherwise, just keep going."
+            " to see the full queue, or `desloppify plan --help`"
+            " for all plan tools. Please don't stop until you're"
+            " done — unless I've told you otherwise, just keep going."
         )
 
 
-__all__ = ["_check_queue_order_guard", "cmd_suppress_pattern", "cmd_resolve"]
+__all__ = ["_check_queue_order_guard", "cmd_resolve"]

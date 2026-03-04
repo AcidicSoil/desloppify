@@ -3,7 +3,7 @@
 Tests cover:
   1. desloppify.app.commands.resolve.render
   2. desloppify.app.commands.status.strict_target
-  3. desloppify.app.commands._fix_preview
+  3. desloppify.app.commands.autofix.preview
   4. desloppify.app.commands.viz
   5. desloppify.app.commands.review.cmd
   6. desloppify.app.commands.update_skill
@@ -333,17 +333,17 @@ class TestFormatStrictTargetProgress:
         assert isinstance(target, float)
 
 
-# ── 3. _fix_preview.py ────────────────────────────────────────────────────
+# ── 3. _autofix_preview.py ─────────────────────────────────────────────────
 
-from desloppify.app.commands._fix_preview import (  # noqa: E402
+from desloppify.app.commands.autofix.preview import (  # noqa: E402
     _print_fix_file_sample,
     show_fix_dry_run_samples,
 )
 
 
 class TestShowFixDryRunSamples:
-    @patch("desloppify.app.commands._fix_preview.colorize", side_effect=lambda t, _c: t)
-    @patch("desloppify.app.commands._fix_preview._print_fix_file_sample")
+    @patch("desloppify.app.commands.autofix.preview.colorize", side_effect=lambda t, _c: t)
+    @patch("desloppify.app.commands.autofix.preview._print_fix_file_sample")
     def test_calls_print_for_each_sampled_result(self, mock_print_sample, _mock_colorize, capsys):
         results = [
             {"file": f"f{i}.py", "removed": [f"name{i}"]}
@@ -353,8 +353,8 @@ class TestShowFixDryRunSamples:
         show_fix_dry_run_samples(entries, results)
         assert mock_print_sample.call_count == 3
 
-    @patch("desloppify.app.commands._fix_preview.colorize", side_effect=lambda t, _c: t)
-    @patch("desloppify.app.commands._fix_preview._print_fix_file_sample")
+    @patch("desloppify.app.commands.autofix.preview.colorize", side_effect=lambda t, _c: t)
+    @patch("desloppify.app.commands.autofix.preview._print_fix_file_sample")
     def test_caps_at_5_samples(self, mock_print_sample, _mock_colorize, capsys):
         results = [
             {"file": f"f{i}.py", "removed": [f"name{i}"]}
@@ -363,8 +363,8 @@ class TestShowFixDryRunSamples:
         show_fix_dry_run_samples([], results)
         assert mock_print_sample.call_count == 5
 
-    @patch("desloppify.app.commands._fix_preview.colorize", side_effect=lambda t, _c: t)
-    @patch("desloppify.app.commands._fix_preview._print_fix_file_sample")
+    @patch("desloppify.app.commands.autofix.preview.colorize", side_effect=lambda t, _c: t)
+    @patch("desloppify.app.commands.autofix.preview._print_fix_file_sample")
     def test_skip_note_when_entries_exceed_removed(self, mock_print_sample, _mock_colorize, capsys):
         entries = [{"file": "a.py", "name": "x"}, {"file": "b.py", "name": "y"}]
         results = [{"file": "a.py", "removed": ["x"]}]  # 1 removed, 2 entries
@@ -374,8 +374,8 @@ class TestShowFixDryRunSamples:
 
 
 class TestPrintFixFileSample:
-    @patch("desloppify.app.commands._fix_preview.colorize", side_effect=lambda t, _c: t)
-    @patch("desloppify.app.commands._fix_preview.rel", side_effect=lambda p: p)
+    @patch("desloppify.app.commands.autofix.preview.colorize", side_effect=lambda t, _c: t)
+    @patch("desloppify.app.commands.autofix.preview.rel", side_effect=lambda p: p)
     def test_shows_context_lines(self, _mock_rel, _mock_colorize, capsys, tmp_path):
         test_file = tmp_path / "test.py"
         test_file.write_text("line1\nline2\nline3\nline4\nline5\n")
@@ -387,8 +387,8 @@ class TestPrintFixFileSample:
         assert "var_a" in out
         assert "line 3" in out
 
-    @patch("desloppify.app.commands._fix_preview.colorize", side_effect=lambda t, _c: t)
-    @patch("desloppify.app.commands._fix_preview.rel", side_effect=lambda p: p)
+    @patch("desloppify.app.commands.autofix.preview.colorize", side_effect=lambda t, _c: t)
+    @patch("desloppify.app.commands.autofix.preview.rel", side_effect=lambda p: p)
     def test_handles_missing_file(self, _mock_rel, _mock_colorize, capsys):
         result = {"file": "/nonexistent/path.py", "removed": ["x"]}
         entries = [{"file": "/nonexistent/path.py", "name": "x", "line": 1}]
@@ -396,8 +396,8 @@ class TestPrintFixFileSample:
         # Should not crash, just return silently
         assert capsys.readouterr().out == ""
 
-    @patch("desloppify.app.commands._fix_preview.colorize", side_effect=lambda t, _c: t)
-    @patch("desloppify.app.commands._fix_preview.rel", side_effect=lambda p: p)
+    @patch("desloppify.app.commands.autofix.preview.colorize", side_effect=lambda t, _c: t)
+    @patch("desloppify.app.commands.autofix.preview.rel", side_effect=lambda p: p)
     def test_caps_at_2_entries_per_file(self, _mock_rel, _mock_colorize, capsys, tmp_path):
         test_file = tmp_path / "test.py"
         test_file.write_text("a\nb\nc\nd\ne\nf\ng\nh\ni\nj\n")

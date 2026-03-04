@@ -12,7 +12,10 @@ from desloppify.intelligence.review.importing.assessments import store_assessmen
 from desloppify.intelligence.review.importing.holistic import (
     parse_holistic_import_payload,
 )
-from desloppify.intelligence.review.importing.payload import extract_reviewed_files
+from desloppify.intelligence.review.importing.payload import (
+    extract_reviewed_files,
+    parse_review_import_payload,
+)
 from desloppify.intelligence.review.importing.per_file import (
     parse_per_file_import_payload,
 )
@@ -42,6 +45,14 @@ def test_import_split_extract_helpers_require_object_payloads():
 def test_import_shared_extract_reviewed_files_deduplicates():
     reviewed = extract_reviewed_files({"reviewed_files": ["a.py", "", "a.py", "b.py"]})
     assert reviewed == ["a.py", "b.py"]
+
+
+def test_import_shared_parse_payload_accepts_legacy_findings_alias():
+    parsed = parse_review_import_payload(
+        {"findings": [{"summary": "legacy payload"}]},
+        mode_name="Holistic",
+    )
+    assert parsed.issues == [{"summary": "legacy payload"}]
 
 
 def test_store_assessments_keeps_holistic_precedence():

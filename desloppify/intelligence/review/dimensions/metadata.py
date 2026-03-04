@@ -6,56 +6,22 @@ import logging
 from functools import lru_cache
 
 from desloppify.base.text_utils import is_numeric
-from desloppify.engine._scoring.subjective.core import DISPLAY_NAMES
 from desloppify.intelligence.review.dimensions.data import (
     load_dimensions,
     load_dimensions_for_lang,
+)
+from desloppify.intelligence.review.dimensions.metadata_legacy import (
+    LEGACY_DISPLAY_NAMES,
+    LEGACY_RESET_ON_SCAN_DIMENSIONS,
+    LEGACY_WEIGHT_BY_DIMENSION,
 )
 from desloppify.languages import available_langs
 
 logger = logging.getLogger(__name__)
 
-# Canonical display names — imported from engine/_scoring/subjective/core.py.
-_LEGACY_DISPLAY_NAMES: dict[str, str] = DISPLAY_NAMES
-
-_LEGACY_SUBJECTIVE_WEIGHTS_BY_DISPLAY: dict[str, float] = {
-    "high elegance": 22.0,
-    "mid elegance": 22.0,
-    "low elegance": 12.0,
-    "contracts": 12.0,
-    "type safety": 12.0,
-    "abstraction fit": 8.0,
-    "logic clarity": 6.0,
-    "structure nav": 5.0,
-    "error consistency": 3.0,
-    "naming quality": 2.0,
-    "ai generated debt": 1.0,
-    "design coherence": 10.0,
-}
-
-_LEGACY_RESET_ON_SCAN_DIMENSIONS: frozenset[str] = frozenset(
-    {
-        "naming_quality",
-        "error_consistency",
-        "abstraction_fitness",
-        "logic_clarity",
-        "ai_generated_debt",
-        "type_safety",
-        "contract_coherence",
-        "package_organization",
-        "high_level_elegance",
-        "mid_level_elegance",
-        "low_level_elegance",
-    }
-)
-
-_LEGACY_WEIGHT_BY_DIMENSION: dict[str, float] = {}
-for _dimension_key, _display_name in _LEGACY_DISPLAY_NAMES.items():
-    _weight = _LEGACY_SUBJECTIVE_WEIGHTS_BY_DISPLAY.get(
-        " ".join(_display_name.strip().lower().split())
-    )
-    if _weight is not None:
-        _LEGACY_WEIGHT_BY_DIMENSION[_dimension_key] = _weight
+_LEGACY_DISPLAY_NAMES = LEGACY_DISPLAY_NAMES
+_LEGACY_WEIGHT_BY_DIMENSION = LEGACY_WEIGHT_BY_DIMENSION
+_LEGACY_RESET_ON_SCAN_DIMENSIONS = LEGACY_RESET_ON_SCAN_DIMENSIONS
 
 
 def _normalize_dimension_name(name: str) -> str:

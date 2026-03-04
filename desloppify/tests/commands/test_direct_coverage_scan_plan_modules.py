@@ -22,7 +22,7 @@ import desloppify.base.coercions as coercions_api_mod
 import desloppify.base.enums as enums_mod
 import desloppify.base.search.query_paths as query_paths_mod
 import desloppify.engine.planning.scorecard_policy as scorecard_policy_mod
-import desloppify.engine.planning.triage as planning_triage_mod
+import desloppify.engine._plan.epic_triage as planning_triage_mod
 import desloppify.languages._framework.scaffold_move as scaffold_move_mod
 import desloppify.languages.go.commands as go_commands_mod
 import desloppify.languages.go.detectors.deps as go_deps_mod

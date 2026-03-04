@@ -614,7 +614,7 @@ def test_write_packet_snapshot_redacts_target_from_blind_packet(tmp_path):
     assert "next_command" not in blind_payload
 
 
-_P_SETUP = "desloppify.app.commands.review.prepare.review_runtime_mod.setup_lang_concrete"
+_P_SETUP = "desloppify.app.commands.review.prepare.setup_lang_concrete"
 _P_NARRATIVE = "desloppify.app.commands.review.prepare.narrative_mod.compute_narrative"
 _P_REVIEW_PREP = "desloppify.app.commands.review.prepare.review_mod.prepare_holistic_review"
 _P_REVIEW_OPTS = "desloppify.app.commands.review.prepare.review_mod.HolisticReviewPrepareOptions"

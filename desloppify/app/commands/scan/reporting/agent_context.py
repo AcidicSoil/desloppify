@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from desloppify import state as state_mod
+from desloppify.base.output.user_message import print_user_message
 from desloppify.app.commands.update_skill import (
     resolve_interface,
     update_installed_skill,
@@ -318,6 +319,13 @@ def print_llm_summary(
     _print_narrative_status(narrative)
     _print_badge_hint(badge_path)
     print("─" * 60)
+
+    if has_plan:
+        print_user_message(
+            "Hey — please follow the living plan. Run `desloppify"
+            " next` for your next task. No need to reply, just"
+            " continue."
+        )
 
 
 def _llm_summary_empty(scores: state_mod.ScoreSnapshot, dim_scores: dict[str, Any]) -> bool:

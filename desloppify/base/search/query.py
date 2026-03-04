@@ -57,7 +57,7 @@ def _lightweight_item(item: object) -> object:
                 compact_detail[key] = value
         light["detail"] = compact_detail
 
-    if light.get("kind") == "cluster":
+    if item.get("kind") == "cluster":
         members = light.get("members")
         if isinstance(members, list) and len(members) > QUERY_CLUSTER_MEMBER_LIMIT:
             light["members"] = members[:QUERY_CLUSTER_MEMBER_LIMIT]
@@ -118,8 +118,8 @@ def _fit_payload_to_budget(payload: dict, *, max_bytes: int) -> dict:
             keep = max(0, keep // 2)
             trimmed["items"] = items[:keep]
 
-    if _payload_size_bytes(trimmed) > max_bytes and "config" in trimmed:
-        trimmed.pop("config", None)
+    if _payload_size_bytes(trimmed) > max_bytes and "config" in payload:
+        trimmed = {key: value for key, value in trimmed.items() if key != "config"}
         trimmed["config_truncated"] = True
 
     if _payload_size_bytes(trimmed) > max_bytes and "queue" in trimmed:
@@ -135,9 +135,11 @@ def _fit_payload_to_budget(payload: dict, *, max_bytes: int) -> dict:
             },
         }
 
-    query_meta = trimmed.get("query_truncated")
+    query_meta = payload.get("query_truncated")
     if isinstance(query_meta, dict) and isinstance(trimmed.get("items"), list):
-        query_meta["items_sample"] = len(trimmed["items"])
+        updated_query_meta = dict(query_meta)
+        updated_query_meta["items_sample"] = len(trimmed["items"])
+        trimmed["query_truncated"] = updated_query_meta
     return trimmed
 
 

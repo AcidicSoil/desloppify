@@ -10,6 +10,9 @@ from desloppify.intelligence.review.importing.contracts import (
     ReviewIssuePayload,
 )
 
+LEGACY_FINDINGS_ALIAS_SUNSET_DATE = "2026-12-31"
+ALLOW_LEGACY_FINDINGS_ALIAS = True
+
 
 @dataclass(frozen=True)
 class ReviewImportEnvelope:
@@ -18,6 +21,30 @@ class ReviewImportEnvelope:
     issues: list[ReviewIssuePayload]
     assessments: dict[str, Any] | None
     reviewed_files: list[str]
+
+
+def normalize_legacy_findings_alias(
+    payload: dict[str, Any],
+    *,
+    missing_issues_error: str,
+    allow_legacy_findings: bool = ALLOW_LEGACY_FINDINGS_ALIAS,
+) -> str | None:
+    """Normalize legacy ``findings`` into canonical ``issues`` in one place.
+
+    ``allow_legacy_findings`` is the compatibility cutoff flag; once flipped to
+    ``False`` only canonical ``issues`` payloads are accepted.
+    """
+    if "issues" in payload:
+        return None
+    if "findings" not in payload:
+        return missing_issues_error
+    if not allow_legacy_findings:
+        return (
+            "legacy key 'findings' is no longer accepted; use 'issues' "
+            f"(support sunset: {LEGACY_FINDINGS_ALIAS_SUNSET_DATE})"
+        )
+    payload["issues"] = payload.pop("findings")
+    return None
 
 
 def extract_reviewed_files(data: list[dict] | dict) -> list[str]:
@@ -50,10 +77,15 @@ def parse_review_import_payload(
     if not isinstance(data, dict):
         raise ValueError(f"{mode_name} review import payload must be a JSON object")
 
-    # Accept both "issues" (canonical) and "findings" (legacy)
-    issues_list = data.get("issues") if "issues" in data else data.get("findings")
-    if issues_list is None:
-        raise ValueError(f"{mode_name} review import payload must contain 'issues'")
+    missing_issues_error = f"{mode_name} review import payload must contain 'issues'"
+    key_error = normalize_legacy_findings_alias(
+        data,
+        missing_issues_error=missing_issues_error,
+    )
+    if key_error is not None:
+        raise ValueError(key_error)
+
+    issues_list = data.get("issues")
     if not isinstance(issues_list, list):
         raise ValueError(f"{mode_name} review import payload 'issues' must be a list")
     for idx, entry in enumerate(issues_list):

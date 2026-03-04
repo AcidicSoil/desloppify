@@ -33,7 +33,7 @@ from desloppify.engine.plan import load_plan
 from desloppify.engine.planning.scorecard_projection import (
     scorecard_dimensions_payload,
 )
-from desloppify.intelligence.narrative import NarrativeContext, compute_narrative
+from desloppify.intelligence.narrative.core import NarrativeContext, compute_narrative
 
 from . import output as next_output_mod
 from . import render as next_render_mod
@@ -121,7 +121,7 @@ def cmd_next(args: argparse.Namespace) -> None:
         print(colorize(f"  {config_warning}", "yellow"))
 
     print_triage_guardrail_info(state=state)
-    _get_items(args, state, config)
+    _build_and_render_queue(args, state, config)
 
 
 def _resolve_cluster_focus(
@@ -206,7 +206,7 @@ def _merge_potentials_safe(raw_potentials: dict | None) -> dict | None:
         return raw_potentials or None
 
 
-def _get_items(args: argparse.Namespace, state: dict, config: dict) -> None:
+def _build_and_render_queue(args: argparse.Namespace, state: dict, config: dict) -> None:
     opts = NextOptions.from_args(args)
 
     target_strict = target_strict_score_from_config(config)
@@ -318,11 +318,12 @@ def _get_items(args: argparse.Namespace, state: dict, config: dict) -> None:
         print_user_message(
             "Hey — the task details are printed above. Just start"
             " working on it. When you're done, resolve it with"
-            " `desloppify plan resolve` and then run `desloppify next`"
-            " again for the next one. If this doesn't seem like the"
-            " right priority, run `desloppify plan show` to see the"
-            " full queue and reorder. Don't stop until you're done"
-            " — unless I've told you otherwise, just keep going."
+            " `desloppify plan resolve` and then run `desloppify"
+            " next` again. If this doesn't seem like the right"
+            " priority, run `desloppify plan show` to see the full"
+            " queue, or `desloppify plan --help` for all plan tools."
+            " Don't stop until you're done — unless I've told you"
+            " otherwise, just keep going."
         )
 
 

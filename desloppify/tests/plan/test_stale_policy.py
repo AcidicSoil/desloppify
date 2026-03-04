@@ -626,12 +626,12 @@ class TestComputeNewIssueIds:
         result = compute_new_issue_ids(plan, state)
         assert result == {"c1"}
 
-    def test_synthesized_ids_fallback(self):
-        """Uses synthesized_ids as fallback for triaged_ids (migration compat)."""
+    def test_synthesized_ids_not_used_as_fallback(self):
+        """Legacy synthesized_ids should not be treated as triaged_ids."""
         plan = {"epic_triage_meta": {"synthesized_ids": ["r1"]}}
         state = _state_with_review_issues("r1", "r2")
         result = compute_new_issue_ids(plan, state)
-        assert result == {"r2"}
+        assert result == set()
 
     def test_no_meta_returns_empty(self):
         plan = {}

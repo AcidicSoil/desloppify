@@ -5,8 +5,7 @@ from __future__ import annotations
 import os
 
 from desloppify.base.registry import DetectorMeta
-
-AUTO_PREFIX = "auto/"
+from desloppify.engine._plan.constants import AUTO_PREFIX
 
 
 def extract_subtype(issue: dict) -> str | None:

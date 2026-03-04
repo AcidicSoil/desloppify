@@ -8,7 +8,7 @@ from desloppify.engine._plan.auto_cluster import (
     _repair_ghost_cluster_refs,
     auto_cluster_issues,
 )
-from desloppify.engine._plan.operations import (
+from desloppify.engine._plan.operations_cluster import (
     add_to_cluster,
     create_cluster,
     remove_from_cluster,

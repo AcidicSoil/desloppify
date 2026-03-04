@@ -5,22 +5,7 @@ from __future__ import annotations
 from typing import Any, NotRequired, Required, TypedDict
 
 from desloppify.engine._plan.schema_migrations import (
-    ensure_container_types as _ensure_container_types,
-)
-from desloppify.engine._plan.schema_migrations import (
-    migrate_deferred_to_skipped as _migrate_deferred_to_skipped,
-)
-from desloppify.engine._plan.schema_migrations import (
-    migrate_epics_to_clusters as _migrate_epics_to_clusters,
-)
-from desloppify.engine._plan.schema_migrations import (
-    migrate_synthesis_to_triage as _migrate_synthesis_to_triage,
-)
-from desloppify.engine._plan.schema_migrations import (
-    migrate_v5_to_v6 as _migrate_v5_to_v6,
-)
-from desloppify.engine._plan.schema_migrations import (
-    normalize_cluster_defaults as _normalize_cluster_defaults,
+    upgrade_plan_to_v7 as _upgrade_plan_to_v7,
 )
 from desloppify.engine._plan.skip_policy import VALID_SKIP_KINDS
 from desloppify.engine._state.schema import utc_now
@@ -176,11 +161,6 @@ class PlanModel(TypedDict, total=False):
     uncommitted_issues: list[str]
     commit_tracking_branch: str | None
     completed_clusters: NotRequired[list[dict[str, Any]]]  # legacy snapshot key
-    # Legacy compat keys (consumed by migration helpers)
-    epics: NotRequired[dict[str, Any]]
-    epic_synthesis_meta: NotRequired[dict[str, Any]]
-    pending_plan_gate: NotRequired[bool]
-    uncommitted_findings: NotRequired[list[str]]
 
 
 def empty_plan() -> PlanModel:
@@ -210,21 +190,12 @@ def empty_plan() -> PlanModel:
 def ensure_plan_defaults(plan: dict[str, Any]) -> None:
     """Normalize a loaded plan to ensure all keys exist.
 
-    Handles migration from v1 (deferred list) to v2 (skipped dict),
-    v3 (top-level epics) to v4 (epics unified into clusters),
-    v5 (gates) to v6 (unified queue),
-    and v6 (synthesis naming) to v7 (triage naming).
+    Runtime contract is v7-only. Legacy payloads are upgraded in-place once.
     """
     defaults = empty_plan()
     for key, value in defaults.items():
         plan.setdefault(key, value)
-
-    _ensure_container_types(plan)
-    _migrate_deferred_to_skipped(plan)
-    _migrate_epics_to_clusters(plan)
-    _normalize_cluster_defaults(plan)
-    _migrate_v5_to_v6(plan)
-    _migrate_synthesis_to_triage(plan)
+    _upgrade_plan_to_v7(plan)
 
 
 def triage_clusters(plan: dict[str, Any]) -> dict[str, Cluster]:

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from . import work_queue_cases as _cases
+from .. import work_queue_cases as _cases
 
 for _name in dir(_cases):
     if not (_name.startswith("Test") or _name.startswith("test_")):

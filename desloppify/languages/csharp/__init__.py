@@ -21,14 +21,14 @@ from desloppify.languages._framework.base.types import (
 from desloppify.languages._framework.treesitter.phases import all_treesitter_phases
 from desloppify.languages.csharp import test_coverage as csharp_test_coverage_hooks
 from desloppify.languages.csharp._helpers import extract_all_csharp_functions
-from desloppify.languages.csharp._review import (
-    CSHARP_HOLISTIC_REVIEW_DIMENSIONS,
-    CSHARP_LOW_VALUE_PATTERN,
-    CSHARP_MIGRATION_MIXED_EXTENSIONS,
-    CSHARP_MIGRATION_PATTERN_PAIRS,
-    CSHARP_REVIEW_GUIDANCE,
-    csharp_review_api_surface,
-    csharp_review_module_patterns,
+from desloppify.languages.csharp.review import (
+    HOLISTIC_REVIEW_DIMENSIONS as CSHARP_HOLISTIC_REVIEW_DIMENSIONS,
+    LOW_VALUE_PATTERN as CSHARP_LOW_VALUE_PATTERN,
+    MIGRATION_MIXED_EXTENSIONS as CSHARP_MIGRATION_MIXED_EXTENSIONS,
+    MIGRATION_PATTERN_PAIRS as CSHARP_MIGRATION_PATTERN_PAIRS,
+    REVIEW_GUIDANCE as CSHARP_REVIEW_GUIDANCE,
+    api_surface as csharp_review_api_surface,
+    module_patterns as csharp_review_module_patterns,
 )
 from desloppify.languages.csharp._zones import CSHARP_ENTRY_PATTERNS, CSHARP_ZONE_RULES
 from desloppify.languages.csharp.commands import get_detect_commands

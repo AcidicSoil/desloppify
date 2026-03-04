@@ -8,7 +8,7 @@ from desloppify.app.cli_support.parser_groups_admin import (  # noqa: F401 (re-e
     _add_config_parser,
     _add_detect_parser,
     _add_dev_parser,
-    _add_fix_parser,
+    _add_autofix_parser,
     _add_langs_parser,
     _add_move_parser,
     _add_review_parser,
@@ -26,7 +26,7 @@ __all__ = [
     "_add_detect_parser",
     "_add_dev_parser",
     "_add_exclude_parser",
-    "_add_fix_parser",
+    "_add_autofix_parser",
     "_add_suppress_parser",
     "_add_langs_parser",
     "_add_move_parser",
@@ -110,7 +110,7 @@ examples:
 
 
 def _add_status_parser(sub) -> None:
-    p_status = sub.add_parser("status", help="Score dashboard with per-tier progress")
+    p_status = sub.add_parser("status", help="Full project dashboard: score, dimensions, progress, coaching")
     p_status.add_argument("--state", type=str, default=None, help="Path to state file")
     p_status.add_argument("--json", action="store_true", help="Output as JSON")
 
@@ -262,7 +262,7 @@ examples:
 
 def _add_suppress_parser(sub) -> None:
     p_suppress = sub.add_parser(
-        "suppress", help="Suppress issues matching a pattern"
+        "suppress", help="Permanently silence issues matching a pattern (false positives / accepted debt)"
     )
     p_suppress.add_argument("pattern", help="File path, glob, or detector::prefix")
     p_suppress.add_argument(
@@ -280,6 +280,6 @@ def _add_suppress_parser(sub) -> None:
 
 def _add_exclude_parser(sub) -> None:
     p_exclude = sub.add_parser(
-        "exclude", help="Add path pattern to exclude list"
+        "exclude", help="Exclude paths from scanning entirely"
     )
     p_exclude.add_argument("pattern", help="Path pattern to exclude from scanning")

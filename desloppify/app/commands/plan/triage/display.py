@@ -6,7 +6,6 @@ import argparse
 from collections import defaultdict
 
 from desloppify.app.commands.helpers.display import short_issue_id
-from desloppify.app.commands.helpers.runtime import command_runtime
 from desloppify.app.commands.plan.triage_playbook import (
     TRIAGE_CMD_CLUSTER_ADD,
     TRIAGE_CMD_CLUSTER_CREATE,
@@ -22,11 +21,6 @@ from desloppify.app.commands.plan.triage_playbook import (
 )
 from desloppify.base.output.terminal import colorize
 from desloppify.base.output.user_message import print_user_message
-from desloppify.engine.plan import (
-    collect_triage_input,
-    detect_recurring_patterns,
-    load_plan,
-)
 
 from .helpers import (
     _find_cluster_for,
@@ -35,6 +29,7 @@ from .helpers import (
     _print_cascade_clear_feedback,
     _triage_coverage,
 )
+from .services import TriageServices, default_triage_services
 from .stage_helpers import _unenriched_clusters
 
 
@@ -154,13 +149,14 @@ def _print_reflect_result(
         print(colorize(f"  \u2502 {line}", "cyan"))
     print(colorize("  \u2514" + "\u2500" * 57 + "\u2518", "cyan"))
     print_user_message(
-        "Hey — your strategic briefing is printed above. Synthesize"
-        " it into a clear strategy: what are the big themes, where do"
-        " issues contradict, and which direction will you take? What's"
-        " actually worth doing vs just busywork or over-decomposing?"
-        " Don't shy away from big refactors if warranted, but cut"
-        " anything that's just churn. Proceed to organize — no need"
-        " to wait for my input unless I've asked you to."
+        "Hey — reflect is recorded, your strategy is printed"
+        " above. Before you confirm, make sure it's thorough —"
+        " think through contradictions, decide what's worth doing"
+        " vs busywork, lay out the real shape of the work. Write"
+        " it up properly if it helps. Once you're confident,"
+        " confirm and start organizing: create clusters, enrich"
+        " them, then record organize. No need to wait for my"
+        " input unless I've asked you to."
     )
 
 def _print_organize_result(
@@ -197,17 +193,25 @@ def _print_organize_result(
         print(colorize(f"  \u2502 {line}", "cyan"))
     print(colorize("  \u2514" + "\u2500" * 57 + "\u2518", "cyan"))
     print_user_message(
-        "Hey — the cluster summary and prioritized organization are"
-        " printed above. Now make it executable: use desloppify tools"
-        " to get the sequencing right across clusters and within each"
-        " one. Write action steps so detailed that someone with no"
-        " context could follow them without mistakes — research the"
-        " hard parts and spell out exactly how to do them. Continue"
-        " to completion, no need to stop unless I've asked you to."
+        "Hey — organize is recorded, your clusters are printed"
+        " above. Before you confirm, think from the executor's"
+        " perspective: is every task code-monkey-proof? Are the"
+        " action steps detailed enough that someone with zero"
+        " context won't make mistakes? Is the sequencing right"
+        " — both across clusters and within each one? Research"
+        " anything you're unsure about. Once you're confident,"
+        " confirm and complete triage. No need to stop unless"
+        " I've asked you to."
     )
 
-def _print_reflect_dashboard(si: object, plan: dict) -> None:
+def _print_reflect_dashboard(
+    si: object,
+    plan: dict,
+    *,
+    services: TriageServices | None = None,
+) -> None:
     """Show completed clusters, resolved issues, and recurring patterns."""
+    resolved_services = services or default_triage_services()
     # si is a TriageInput
     completed = getattr(si, "completed_clusters", [])
     resolved = getattr(si, "resolved_issues", {})
@@ -239,7 +243,7 @@ def _print_reflect_dashboard(si: object, plan: dict) -> None:
         if len(resolved) > 10:
             print(colorize(f"    ... and {len(resolved) - 10} more", "dim"))
 
-    recurring = detect_recurring_patterns(open_issues, resolved)
+    recurring = resolved_services.detect_recurring_patterns(open_issues, resolved)
     if recurring:
         print(colorize("\n  Recurring patterns detected:", "yellow"))
         for dim, info in sorted(recurring.items()):
@@ -257,12 +261,17 @@ def _print_reflect_dashboard(si: object, plan: dict) -> None:
         print(colorize("  - Which issues will you cluster together vs defer?", "dim"))
         print(colorize("  - What's the overall arc of work and why?", "dim"))
 
-def _cmd_triage_dashboard(args: argparse.Namespace) -> None:
+def _cmd_triage_dashboard(
+    args: argparse.Namespace,
+    *,
+    services: TriageServices | None = None,
+) -> None:
     """Default view: show issues, stage progress, and next command."""
-    runtime = command_runtime(args)
+    resolved_services = services or default_triage_services()
+    runtime = resolved_services.command_runtime(args)
     state = runtime.state
-    plan = load_plan()
-    si = collect_triage_input(plan, state)
+    plan = resolved_services.load_plan()
+    si = resolved_services.collect_triage_input(plan, state)
     meta = plan.get("epic_triage_meta", {})
     stages = meta.get("triage_stages", {})
 
@@ -401,7 +410,7 @@ def _cmd_triage_dashboard(args: argparse.Namespace) -> None:
 
     # Show reflect dashboard when observe done, reflect not done
     if "observe" in stages and "reflect" not in stages:
-        _print_reflect_dashboard(si, plan)
+        _print_reflect_dashboard(si, plan, services=resolved_services)
 
     # Show current cluster progress
     _print_progress(plan, si.open_issues)
@@ -443,7 +452,17 @@ def _show_plan_summary(plan: dict, state: dict) -> None:
     pct = int(organized / total * 100) if total else 0
     print(colorize(f"\n  Coverage: {organized}/{total} in clusters ({pct}%)", "bold"))
 
+
+def cmd_triage_dashboard(
+    args: argparse.Namespace,
+    *,
+    services: TriageServices | None = None,
+) -> None:
+    """Public entrypoint for triage dashboard rendering."""
+    _cmd_triage_dashboard(args, services=services)
+
 __all__ = [
+    "cmd_triage_dashboard",
     "_cmd_triage_dashboard",
     "_print_organize_result",
     "_print_progress",

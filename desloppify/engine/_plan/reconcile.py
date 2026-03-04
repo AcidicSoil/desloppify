@@ -6,7 +6,8 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
 from desloppify.engine._plan.annotations import get_issue_note
-from desloppify.engine._plan.operations import append_log_entry, resurface_stale_skips
+from desloppify.engine._plan.operations_meta import append_log_entry
+from desloppify.engine._plan.operations_skip import resurface_stale_skips
 from desloppify.engine._plan.promoted_ids import prune_promoted_ids
 from desloppify.engine._plan.schema import (
     EPIC_PREFIX,

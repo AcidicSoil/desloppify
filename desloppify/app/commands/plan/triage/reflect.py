@@ -8,11 +8,11 @@ import re
 from desloppify.app.commands.helpers.runtime import command_runtime
 from desloppify.base.output.terminal import colorize
 from desloppify.base.subjective_dimensions import DISPLAY_NAMES
-from desloppify.engine.plan import load_plan
-from desloppify.engine.planning.triage import (
+from desloppify.engine._plan.epic_triage import (
     collect_triage_input,
     detect_recurring_patterns,
 )
+from desloppify.engine.plan import load_plan
 
 from .stage_helpers import _require_triage_pending, _validate_stage_report
 from .stage_persistence import record_triage_stage

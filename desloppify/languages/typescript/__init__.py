@@ -26,14 +26,14 @@ from desloppify.languages.typescript._detectors import (
     ts_treesitter_phases,
 )
 from desloppify.languages.typescript._fixers import get_ts_fixers
-from desloppify.languages.typescript._review import (
-    TS_HOLISTIC_REVIEW_DIMENSIONS,
-    TS_LOW_VALUE_PATTERN,
-    TS_MIGRATION_MIXED_EXTENSIONS,
-    TS_MIGRATION_PATTERN_PAIRS,
-    TS_REVIEW_GUIDANCE,
-    ts_review_api_surface,
-    ts_review_module_patterns,
+from desloppify.languages.typescript.review import (
+    HOLISTIC_REVIEW_DIMENSIONS as TS_HOLISTIC_REVIEW_DIMENSIONS,
+    LOW_VALUE_PATTERN as TS_LOW_VALUE_PATTERN,
+    MIGRATION_MIXED_EXTENSIONS as TS_MIGRATION_MIXED_EXTENSIONS,
+    MIGRATION_PATTERN_PAIRS as TS_MIGRATION_PATTERN_PAIRS,
+    REVIEW_GUIDANCE as TS_REVIEW_GUIDANCE,
+    api_surface as ts_review_api_surface,
+    module_patterns as ts_review_module_patterns,
 )
 from desloppify.languages.typescript._zones import TS_ZONE_RULES
 from desloppify.languages.typescript.detectors import deps as deps_detector_mod

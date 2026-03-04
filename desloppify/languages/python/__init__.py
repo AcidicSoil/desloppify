@@ -21,14 +21,14 @@ from desloppify.languages._framework.base.types import (
 )
 from desloppify.languages.python import test_coverage as py_test_coverage_hooks
 from desloppify.languages.python._helpers import _get_py_area, py_extract_functions
-from desloppify.languages.python._review import (
-    PY_HOLISTIC_REVIEW_DIMENSIONS,
-    PY_LOW_VALUE_PATTERN,
-    PY_MIGRATION_MIXED_EXTENSIONS,
-    PY_MIGRATION_PATTERN_PAIRS,
-    PY_REVIEW_GUIDANCE,
-    py_review_api_surface,
-    py_review_module_patterns,
+from desloppify.languages.python.review import (
+    HOLISTIC_REVIEW_DIMENSIONS as PY_HOLISTIC_REVIEW_DIMENSIONS,
+    LOW_VALUE_PATTERN as PY_LOW_VALUE_PATTERN,
+    MIGRATION_MIXED_EXTENSIONS as PY_MIGRATION_MIXED_EXTENSIONS,
+    MIGRATION_PATTERN_PAIRS as PY_MIGRATION_PATTERN_PAIRS,
+    REVIEW_GUIDANCE as PY_REVIEW_GUIDANCE,
+    api_surface as py_review_api_surface,
+    module_patterns as py_review_module_patterns,
 )
 from desloppify.languages.python._security import (
     detect_python_security,

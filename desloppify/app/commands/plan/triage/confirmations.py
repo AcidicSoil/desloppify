@@ -4,15 +4,8 @@ from __future__ import annotations
 
 import argparse
 
-from desloppify.app.commands.helpers.runtime import command_runtime
 from desloppify.base.output.terminal import colorize
-from desloppify.engine.plan import (
-    append_log_entry,
-    collect_triage_input,
-    detect_recurring_patterns,
-    load_plan,
-    save_plan,
-)
+from desloppify.base.output.user_message import print_user_message
 from desloppify.state import utc_now
 
 from .display import _show_plan_summary
@@ -23,6 +16,7 @@ from .helpers import (
     _purge_triage_stage,
     _triage_coverage,
 )
+from .services import TriageServices, default_triage_services
 
 _MIN_ATTESTATION_LEN = 80
 
@@ -66,8 +60,16 @@ def _validate_attestation(
 
     return None
 
-def _confirm_observe(args: argparse.Namespace, plan: dict, stages: dict, attestation: str | None) -> None:
+def _confirm_observe(
+    args: argparse.Namespace,
+    plan: dict,
+    stages: dict,
+    attestation: str | None,
+    *,
+    services: TriageServices | None = None,
+) -> None:
     """Show observe summary and record confirmation if attestation is valid."""
+    resolved_services = services or default_triage_services()
     if "observe" not in stages:
         print(colorize("  Cannot confirm: observe stage not recorded.", "red"))
         print(colorize('  Run: desloppify plan triage --stage observe --report "..."', "dim"))
@@ -77,8 +79,8 @@ def _confirm_observe(args: argparse.Namespace, plan: dict, stages: dict, attesta
         return
 
     # Show summary
-    runtime = command_runtime(args)
-    si = collect_triage_input(plan, runtime.state)
+    runtime = resolved_services.command_runtime(args)
+    si = resolved_services.collect_triage_input(plan, runtime.state)
     obs = stages["observe"]
 
     print(colorize("  Stage: OBSERVE — Analyse issues & spot contradictions", "bold"))
@@ -117,14 +119,31 @@ def _confirm_observe(args: argparse.Namespace, plan: dict, stages: dict, attesta
     stages["observe"]["confirmed_at"] = utc_now()
     stages["observe"]["confirmed_text"] = attestation.strip()
     _purge_triage_stage(plan, "observe")
-    save_plan(plan)
-    append_log_entry(plan, "triage_confirm_observe", actor="user",
-                     detail={"attestation": attestation.strip()})
-    save_plan(plan)
+    resolved_services.save_plan(plan)
+    resolved_services.append_log_entry(
+        plan,
+        "triage_confirm_observe",
+        actor="user",
+        detail={"attestation": attestation.strip()},
+    )
+    resolved_services.save_plan(plan)
     print(colorize(f'  ✓ Observe confirmed: "{attestation.strip()}"', "green"))
+    print_user_message(
+        "Hey — observe is confirmed. Run `desloppify plan triage"
+        " --stage reflect --report \"...\"` next. No need to reply,"
+        " just keep going."
+    )
 
-def _confirm_reflect(args: argparse.Namespace, plan: dict, stages: dict, attestation: str | None) -> None:
+def _confirm_reflect(
+    args: argparse.Namespace,
+    plan: dict,
+    stages: dict,
+    attestation: str | None,
+    *,
+    services: TriageServices | None = None,
+) -> None:
     """Show reflect summary and record confirmation if attestation is valid."""
+    resolved_services = services or default_triage_services()
     if "reflect" not in stages:
         print(colorize("  Cannot confirm: reflect stage not recorded.", "red"))
         print(colorize('  Run: desloppify plan triage --stage reflect --report "..."', "dim"))
@@ -133,15 +152,18 @@ def _confirm_reflect(args: argparse.Namespace, plan: dict, stages: dict, attesta
         print(colorize("  Reflect stage already confirmed.", "green"))
         return
 
-    runtime = command_runtime(args)
-    si = collect_triage_input(plan, runtime.state)
+    runtime = resolved_services.command_runtime(args)
+    si = resolved_services.collect_triage_input(plan, runtime.state)
     ref = stages["reflect"]
 
     print(colorize("  Stage: REFLECT — Form strategy & present to user", "bold"))
     print(colorize("  " + "─" * 50, "dim"))
 
     # Recurring dimensions
-    recurring = detect_recurring_patterns(si.open_issues, si.resolved_issues)
+    recurring = resolved_services.detect_recurring_patterns(
+        si.open_issues,
+        si.resolved_issues,
+    )
     if recurring:
         print(f"  Your strategy identified {len(recurring)} recurring dimension(s):")
         for dim, info in sorted(recurring.items()):
@@ -191,14 +213,32 @@ def _confirm_reflect(args: argparse.Namespace, plan: dict, stages: dict, attesta
     stages["reflect"]["confirmed_at"] = utc_now()
     stages["reflect"]["confirmed_text"] = attestation.strip()
     _purge_triage_stage(plan, "reflect")
-    save_plan(plan)
-    append_log_entry(plan, "triage_confirm_reflect", actor="user",
-                     detail={"attestation": attestation.strip()})
-    save_plan(plan)
+    resolved_services.save_plan(plan)
+    resolved_services.append_log_entry(
+        plan,
+        "triage_confirm_reflect",
+        actor="user",
+        detail={"attestation": attestation.strip()},
+    )
+    resolved_services.save_plan(plan)
     print(colorize(f'  ✓ Reflect confirmed: "{attestation.strip()}"', "green"))
+    print_user_message(
+        "Hey — reflect is confirmed. Now create clusters, enrich"
+        " them with action steps, then run `desloppify plan triage"
+        " --stage organize --report \"...\"`. No need to reply,"
+        " just keep going."
+    )
 
-def _confirm_organize(args: argparse.Namespace, plan: dict, stages: dict, attestation: str | None) -> None:
+def _confirm_organize(
+    args: argparse.Namespace,
+    plan: dict,
+    stages: dict,
+    attestation: str | None,
+    *,
+    services: TriageServices | None = None,
+) -> None:
     """Show full plan summary and record confirmation if attestation is valid."""
+    resolved_services = services or default_triage_services()
     if "organize" not in stages:
         print(colorize("  Cannot confirm: organize stage not recorded.", "red"))
         print(colorize('  Run: desloppify plan triage --stage organize --report "..."', "dim"))
@@ -207,7 +247,7 @@ def _confirm_organize(args: argparse.Namespace, plan: dict, stages: dict, attest
         print(colorize("  Organize stage already confirmed.", "green"))
         return
 
-    runtime = command_runtime(args)
+    runtime = resolved_services.command_runtime(args)
     state = runtime.state
 
     print(colorize("  Stage: ORGANIZE — Defer contradictions, cluster, & prioritize", "bold"))
@@ -255,31 +295,61 @@ def _confirm_organize(args: argparse.Namespace, plan: dict, stages: dict, attest
     stages["organize"]["confirmed_at"] = utc_now()
     stages["organize"]["confirmed_text"] = attestation.strip()
     _purge_triage_stage(plan, "organize")
-    save_plan(plan)
-    append_log_entry(plan, "triage_confirm_organize", actor="user",
-                     detail={
-                         "attestation": attestation.strip(),
-                         "coverage": f"{organized}/{total}",
-                     })
-    save_plan(plan)
+    resolved_services.save_plan(plan)
+    resolved_services.append_log_entry(
+        plan,
+        "triage_confirm_organize",
+        actor="user",
+        detail={
+            "attestation": attestation.strip(),
+            "coverage": f"{organized}/{total}",
+        },
+    )
+    resolved_services.save_plan(plan)
     print(colorize(f'  ✓ Organize confirmed: "{attestation.strip()}"', "green"))
+    print_user_message(
+        "Hey — organize is confirmed. Run `desloppify plan triage"
+        " --complete --strategy \"...\"` to finish triage. No need"
+        " to reply, just keep going."
+    )
 
-def _cmd_confirm_stage(args: argparse.Namespace) -> None:
+def _cmd_confirm_stage(
+    args: argparse.Namespace,
+    *,
+    services: TriageServices | None = None,
+) -> None:
     """Router for ``--confirm observe/reflect/organize``."""
+    resolved_services = services or default_triage_services()
     confirm_stage = getattr(args, "confirm", None)
     attestation = getattr(args, "attestation", None)
-    plan = load_plan()
+    plan = resolved_services.load_plan()
     meta = plan.get("epic_triage_meta", {})
     stages = meta.get("triage_stages", {})
 
     if confirm_stage == "observe":
-        _confirm_observe(args, plan, stages, attestation)
+        _confirm_observe(args, plan, stages, attestation, services=resolved_services)
     elif confirm_stage == "reflect":
-        _confirm_reflect(args, plan, stages, attestation)
+        _confirm_reflect(args, plan, stages, attestation, services=resolved_services)
     elif confirm_stage == "organize":
-        _confirm_organize(args, plan, stages, attestation)
+        _confirm_organize(args, plan, stages, attestation, services=resolved_services)
+
+
+MIN_ATTESTATION_LEN = _MIN_ATTESTATION_LEN
+validate_attestation = _validate_attestation
+
+
+def cmd_confirm_stage(
+    args: argparse.Namespace,
+    *,
+    services: TriageServices | None = None,
+) -> None:
+    """Public triage confirmation entrypoint."""
+    _cmd_confirm_stage(args, services=services)
 
 __all__ = [
+    "MIN_ATTESTATION_LEN",
+    "cmd_confirm_stage",
+    "validate_attestation",
     "_MIN_ATTESTATION_LEN",
     "_cmd_confirm_stage",
     "_confirm_observe",

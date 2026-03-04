@@ -647,7 +647,7 @@ def test_plan_reset_does_not_trigger_cycle_completed():
     _cycle_just_completed = not plan.get("plan_start_scores") is False.
     The next scan seeds real scores over the sentinel.
     """
-    from desloppify.engine._plan.operations import reset_plan
+    from desloppify.engine._plan.operations_lifecycle import reset_plan
 
     plan = _plan_with_queue("some_issue::file.py::abc123")
     plan["plan_start_scores"] = {"strict": 80.0, "overall": 80.0}

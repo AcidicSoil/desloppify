@@ -8,7 +8,7 @@ from typing import Any
 
 from desloppify.base.coercions import coerce_positive_int
 from desloppify.engine._state.schema import StateModel
-from desloppify.intelligence import narrative as narrative_mod
+import desloppify.intelligence.narrative.core as narrative_mod
 from desloppify.intelligence import review as review_mod
 
 from ..helpers import parse_dimensions

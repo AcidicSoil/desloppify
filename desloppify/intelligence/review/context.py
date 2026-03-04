@@ -2,29 +2,15 @@
 
 from __future__ import annotations
 
-import re
-from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from desloppify.base.discovery.file_paths import (
-
-    rel,
-
-    resolve_path,
-
-)
-
+from desloppify.base.discovery.file_paths import rel, resolve_path
 from desloppify.base.discovery.source import (
-
     disable_file_cache,
-
     enable_file_cache,
-
     is_file_cache_enabled,
-
     read_file_text,
-
 )
 from desloppify.engine._state.schema import StateModel
 from desloppify.intelligence.review._context.models import ReviewContext
@@ -40,6 +26,7 @@ from desloppify.intelligence.review.context_signals.auth import gather_auth_cont
 from desloppify.intelligence.review.context_signals.migration import (
     classify_error_strategy,
 )
+from desloppify.intelligence.review.context_builder import build_review_context_inner
 
 # ── Shared helpers ────────────────────────────────────────────────
 
@@ -108,157 +95,27 @@ def build_review_context(
     if not already_cached:
         enable_file_cache()
     try:
-        return _build_review_context_inner(files, lang, state, ctx)
+        return build_review_context_inner(
+            files,
+            lang,
+            state,
+            ctx,
+            read_file_text_fn=read_file_text,
+            abs_path_fn=abs_path,
+            rel_fn=rel,
+            importer_count_fn=importer_count,
+            default_review_module_patterns_fn=default_review_module_patterns,
+            func_name_re=FUNC_NAME_RE,
+            class_name_re=CLASS_NAME_RE,
+            name_prefix_re=NAME_PREFIX_RE,
+            error_patterns=ERROR_PATTERNS,
+            gather_ai_debt_signals_fn=gather_ai_debt_signals,
+            gather_auth_context_fn=gather_auth_context,
+            classify_error_strategy_fn=classify_error_strategy,
+        )
     finally:
         if not already_cached:
             disable_file_cache()
-
-
-def _build_review_context_inner(
-    files: list[str],
-    lang,
-    state: StateModel,
-    ctx: ReviewContext,
-) -> ReviewContext:
-    """Inner context builder (runs with file cache enabled)."""
-    # Pre-read all file contents once (cache will store them)
-    file_contents: dict[str, str] = {}
-    for filepath in files:
-        content = read_file_text(abs_path(filepath))
-        if content is not None:
-            file_contents[filepath] = content
-
-    # 1. Naming vocabulary — extract function/class names, count prefixes
-    prefix_counter: Counter = Counter()
-    total_names = 0
-    for content in file_contents.values():
-        for name in FUNC_NAME_RE.findall(content) + CLASS_NAME_RE.findall(content):
-            total_names += 1
-            match = NAME_PREFIX_RE.match(name)
-            if match:
-                prefix_counter[match.group(1)] += 1
-    ctx.naming_vocabulary = {
-        "prefixes": dict(prefix_counter.most_common(20)),
-        "total_names": total_names,
-    }
-
-    # 2. Error handling conventions — scan for patterns
-    error_counts: Counter = Counter()
-    for content in file_contents.values():
-        for pattern_name, pattern in ERROR_PATTERNS.items():
-            if pattern.search(content):
-                error_counts[pattern_name] += 1
-    ctx.error_conventions = dict(error_counts)
-
-    # 3. Module patterns — what each directory typically uses
-    dir_patterns: dict[str, Counter] = {}
-    module_pattern_fn = getattr(lang, "review_module_patterns_fn", None)
-    if not callable(module_pattern_fn):
-        module_pattern_fn = default_review_module_patterns
-    for filepath, content in file_contents.items():
-        parts = Path(filepath).parts
-        if len(parts) < 2:
-            continue
-        dir_name = parts[-2] + "/"
-        counter = dir_patterns.setdefault(dir_name, Counter())
-        pattern_names = module_pattern_fn(content)
-        if not isinstance(pattern_names, list | tuple | set):
-            pattern_names = default_review_module_patterns(content)
-        for pattern_name in pattern_names:
-            counter[pattern_name] += 1
-        if re.search(r"\bclass\s+\w+", content):
-            counter["class_based"] += 1
-    ctx.module_patterns = {
-        d: dict(c.most_common(3))
-        for d, c in dir_patterns.items()
-        if sum(c.values()) >= 3
-    }
-
-    # 4. Import graph summary — top files by importer count
-    if lang.dep_graph:
-        graph = lang.dep_graph
-        importer_counts = {}
-        for filepath, entry in graph.items():
-            count = importer_count(entry)
-            if count > 0:
-                importer_counts[rel(filepath)] = count
-        top = sorted(importer_counts.items(), key=lambda item: -item[1])[:20]
-        ctx.import_graph_summary = {"top_imported": dict(top)}
-
-    # 5. Zone distribution
-    if lang.zone_map is not None:
-        ctx.zone_distribution = lang.zone_map.counts()
-
-    # 6. Existing issues per file (summaries only), scoped to active review files.
-    allowed_review_files = {
-        rel(filepath)
-        for filepath in file_contents
-        if isinstance(filepath, str) and filepath
-    }
-    issues = state.get("issues", {})
-    by_file: dict[str, list[str]] = {}
-    for issue in issues.values():
-        if issue.get("status") != "open":
-            continue
-        issue_file_raw = issue.get("file", "")
-        if not isinstance(issue_file_raw, str) or not issue_file_raw:
-            continue
-        issue_file = rel(issue_file_raw)
-        if issue_file not in allowed_review_files:
-            continue
-        by_file.setdefault(issue_file, []).append(
-            f"{issue['detector']}: {issue['summary'][:80]}"
-        )
-    ctx.existing_issues = by_file
-
-    # 7. Codebase stats
-    total_files = len(file_contents)
-    total_loc = sum(len(content.splitlines()) for content in file_contents.values())
-    ctx.codebase_stats = {
-        "total_files": total_files,
-        "total_loc": total_loc,
-        "avg_file_loc": total_loc // total_files if total_files else 0,
-    }
-    _ = (
-        ctx.codebase_stats["total_files"],
-        ctx.codebase_stats["total_loc"],
-        ctx.codebase_stats["avg_file_loc"],
-    )
-
-    # 8. Sibling function conventions — what naming/patterns neighbors in same dir use
-    dir_functions: dict[str, Counter] = {}
-    for filepath, content in file_contents.items():
-        parts = Path(filepath).parts
-        if len(parts) < 2:
-            continue
-        dir_name = parts[-2] + "/"
-        counter = dir_functions.setdefault(dir_name, Counter())
-        for name in FUNC_NAME_RE.findall(content):
-            match = NAME_PREFIX_RE.match(name)
-            if match:
-                counter[match.group(1)] += 1
-    ctx.sibling_conventions = {
-        d: dict(c.most_common(5))
-        for d, c in dir_functions.items()
-        if sum(c.values()) >= 3
-    }
-
-    # 9. AI debt signals
-    ctx.ai_debt_signals = gather_ai_debt_signals(file_contents, rel_fn=rel)
-
-    # 10. Auth patterns
-    ctx.auth_patterns = gather_auth_context(file_contents, rel_fn=rel)
-
-    # 11. Error strategies per file
-    strategies: dict[str, str] = {}
-    for filepath, content in file_contents.items():
-        strategy = classify_error_strategy(content)
-        if strategy:
-            strategies[rel(filepath)] = strategy
-    ctx.error_strategies = strategies
-
-    ctx.normalize_sections(strict=True)
-    return ctx
 
 
 def serialize_context(ctx: ReviewContext) -> dict[str, Any]:

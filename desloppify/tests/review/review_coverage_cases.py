@@ -68,7 +68,7 @@ def _hash_content(path):
         return hashlib.sha256(f.read()).hexdigest()[:16]
 
 
-def import_review_issues(issues_data, state, lang_name):
+def _call_import_review_issues(issues_data, state, lang_name):
     payload = issues_data if isinstance(issues_data, dict) else {"issues": issues_data}
     return _import_review_issues_impl(payload, state, lang_name)
 
@@ -383,7 +383,7 @@ class TestIDCollision:
             },
         ]
         state = empty_state()
-        _ = import_review_issues(issues_data, state, "python")
+        _ = _call_import_review_issues(issues_data, state, "python")
 
         # Both should be present with distinct IDs (content-hash disambiguated)
         ids = list(state["issues"].keys())
@@ -414,7 +414,7 @@ class TestIDCollision:
             },
         ]
         state = empty_state()
-        _ = import_review_issues(issues_data, state, "python")
+        _ = _call_import_review_issues(issues_data, state, "python")
 
         ids = list(state["issues"].keys())
         assert len(ids) == 2
@@ -435,12 +435,12 @@ class TestIDCollision:
             },
         ]
         state = empty_state()
-        import_review_issues(issues_data, state, "python")
+        _call_import_review_issues(issues_data, state, "python")
         id1 = list(state["issues"].keys())[0]
 
         # Re-import same issue
         state2 = empty_state()
-        import_review_issues(issues_data, state2, "python")
+        _call_import_review_issues(issues_data, state2, "python")
         id2 = list(state2["issues"].keys())[0]
 
         assert id1 == id2
@@ -484,7 +484,7 @@ class TestNewDimensions:
                 }
             ]
             state = empty_state()
-            import_review_issues(issues_data, state, "python")
+            _call_import_review_issues(issues_data, state, "python")
             assert len(state["issues"]) == 1, f"Issue for {dim} was rejected"
 
 

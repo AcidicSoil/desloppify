@@ -13,7 +13,7 @@ from desloppify.base.coercions import coerce_positive_int
 from desloppify.base.discovery.file_paths import safe_write_text
 from desloppify.base.exception_sets import CommandError, PacketValidationError
 from desloppify.base.output.terminal import colorize, log
-from desloppify.intelligence import narrative as narrative_mod
+import desloppify.intelligence.narrative.core as narrative_mod
 from desloppify.intelligence import review as review_mod
 from desloppify.intelligence.review.feedback_contract import (
     max_batch_issues_for_dimension_count,
@@ -38,7 +38,7 @@ from ..runner_process import (
     run_codex_batch,
     run_followup_scan,
 )
-from ..runtime import setup_lang_concrete as _setup_lang
+from ..runtime.setup import setup_lang_concrete as _setup_lang
 from ..runtime_paths import (
     blind_packet_path as _blind_packet_path,
 )

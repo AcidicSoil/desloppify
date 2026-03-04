@@ -6,6 +6,10 @@ import argparse
 
 from desloppify import state as state_mod
 from desloppify.app.commands.helpers.lang import resolve_lang
+from desloppify.app.commands.helpers.persist import (
+    _save_config_or_exit,
+    _save_state_or_exit,
+)
 from desloppify.app.commands.helpers.query import write_query
 from desloppify.app.commands.helpers.queue_progress import show_score_with_plan_context
 from desloppify.app.commands.helpers.runtime import command_runtime
@@ -14,9 +18,8 @@ from desloppify.base.exception_sets import CommandError
 from desloppify.base.output.terminal import colorize
 from desloppify.base.tooling import check_config_staleness
 from desloppify.engine._work_queue.core import ATTEST_EXAMPLE
-from desloppify.intelligence import narrative as narrative_mod
+import desloppify.intelligence.narrative.core as narrative_mod
 
-from .persist import _save_config_or_exit, _save_state_or_exit
 from .selection import show_attestation_requirement, validate_attestation
 
 

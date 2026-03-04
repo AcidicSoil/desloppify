@@ -87,7 +87,7 @@ def _mock_lang(files=None):
     return lang
 
 
-def prepare_holistic_review(
+def _call_prepare_holistic_review(
     path,
     lang,
     state,
@@ -108,7 +108,7 @@ def prepare_holistic_review(
     )
 
 
-def import_holistic_issues(issues_data, state, lang_name, **kwargs):
+def _call_import_holistic_issues(issues_data, state, lang_name, **kwargs):
     payload = issues_data if isinstance(issues_data, dict) else {"issues": issues_data}
     return _import_holistic_issues_impl(payload, state, lang_name, **kwargs)
 
@@ -165,7 +165,7 @@ class TestHolisticDimensionsByLang:
         lang.name = "unknownlang"  # not in HOLISTIC_DIMENSIONS_BY_LANG
         state = empty_state()
 
-        data = prepare_holistic_review(tmp_path, lang, state, files=[f1])
+        data = _call_prepare_holistic_review(tmp_path, lang, state, files=[f1])
 
         assert len(data["dimensions"]) == len(DIMENSIONS)
 
@@ -174,7 +174,7 @@ class TestHolisticDimensionsByLang:
         lang = _mock_lang([f1])
         state = empty_state()
 
-        data = prepare_holistic_review(tmp_path, lang, state, files=[f1])
+        data = _call_prepare_holistic_review(tmp_path, lang, state, files=[f1])
 
         # Full scorecard: all 20 dimensions, not the curated subset
         assert len(data["dimensions"]) == 20
@@ -192,7 +192,7 @@ class TestHolisticDimensionsByLang:
         lang.name = "typescript"
         state = empty_state()
 
-        data = prepare_holistic_review(tmp_path, lang, state, files=[f1])
+        data = _call_prepare_holistic_review(tmp_path, lang, state, files=[f1])
 
         # Full scorecard: all 20 dimensions, not the curated subset
         assert len(data["dimensions"]) == 20
@@ -324,7 +324,7 @@ class TestPrepareHolisticReview:
         lang = _mock_lang([f1])
         state = empty_state()
 
-        data = prepare_holistic_review(tmp_path, lang, state, files=[f1])
+        data = _call_prepare_holistic_review(tmp_path, lang, state, files=[f1])
 
         assert data["mode"] == "holistic"
         assert data["command"] == "review"
@@ -338,7 +338,7 @@ class TestPrepareHolisticReview:
         lang = _mock_lang([f1])
         state = empty_state()
 
-        data = prepare_holistic_review(
+        data = _call_prepare_holistic_review(
             tmp_path,
             lang,
             state,
@@ -579,7 +579,7 @@ class TestImportHolisticIssues:
             }
         ]
 
-        diff = import_holistic_issues(issues_data, state, "python")
+        diff = _call_import_holistic_issues(issues_data, state, "python")
 
         assert diff["new"] == 1
         issues = list(state["issues"].values())
@@ -602,7 +602,7 @@ class TestImportHolisticIssues:
             }
         ]
 
-        diff = import_holistic_issues(issues_data, state, "python")
+        diff = _call_import_holistic_issues(issues_data, state, "python")
 
         assert diff["new"] == 0
         assert len(state["issues"]) == 0
@@ -613,7 +613,7 @@ class TestImportHolisticIssues:
             {"dimension": "cross_module_architecture"}
         ]  # missing identifier, summary, confidence
 
-        diff = import_holistic_issues(issues_data, state, "python")
+        diff = _call_import_holistic_issues(issues_data, state, "python")
 
         assert diff["new"] == 0
 
@@ -640,7 +640,7 @@ class TestImportHolisticIssues:
             },
         ]
 
-        diff = import_holistic_issues(issues_data, state, "python")
+        diff = _call_import_holistic_issues(issues_data, state, "python")
 
         assert diff["new"] == 2
         assert len(state["issues"]) == 2
@@ -659,7 +659,7 @@ class TestImportHolisticIssues:
             }
         ]
 
-        import_holistic_issues(issues_data, state, "python")
+        _call_import_holistic_issues(issues_data, state, "python")
 
         rc = state.get("review_cache", {})
         assert "holistic" in rc
@@ -681,7 +681,7 @@ class TestImportHolisticIssues:
         from desloppify.base.runtime_state import RuntimeContext, runtime_scope
         ctx = RuntimeContext(project_root=tmp_path)
         with runtime_scope(ctx):
-            _ = import_holistic_issues(issues_data, state, "python", project_root=tmp_path)
+            _ = _call_import_holistic_issues(issues_data, state, "python", project_root=tmp_path)
 
         files_cache = state.get("review_cache", {}).get("files", {})
         assert "pkg/module.py" in files_cache
@@ -722,7 +722,7 @@ class TestImportHolisticIssues:
 
         ctx = RuntimeContext(project_root=tmp_path)
         with runtime_scope(ctx):
-            diff = import_holistic_issues(payload, state, "python", project_root=tmp_path)
+            diff = _call_import_holistic_issues(payload, state, "python", project_root=tmp_path)
 
         assert diff["auto_resolved"] >= 1
         assert state["issues"][coverage_id]["status"] == "auto_resolved"
@@ -741,7 +741,7 @@ class TestImportHolisticIssues:
             }
         ]
 
-        import_holistic_issues(issues_data, state, "python")
+        _call_import_holistic_issues(issues_data, state, "python")
 
         pots = state.get("potentials", {})
         assert pots.get("python", {}).get("review") == HOLISTIC_POTENTIAL
@@ -760,7 +760,7 @@ class TestImportHolisticIssues:
             }
         ]
 
-        import_holistic_issues(issues_data, state, "python")
+        _call_import_holistic_issues(issues_data, state, "python")
 
         fid = list(state["issues"].keys())[0]
         assert "holistic" in fid
@@ -798,7 +798,7 @@ class TestImportHolisticIssues:
             },
         ]
 
-        diff = import_holistic_issues(issues_data, state, "python")
+        diff = _call_import_holistic_issues(issues_data, state, "python")
 
         # Only the actual defect should be imported
         assert diff["new"] == 1
@@ -822,7 +822,7 @@ class TestImportHolisticIssues:
             },
         ]
 
-        diff = import_holistic_issues(issues_data, state, "python")
+        diff = _call_import_holistic_issues(issues_data, state, "python")
 
         assert diff["new"] == 0
         assert diff.get("skipped", 0) == 1
@@ -1631,7 +1631,7 @@ class TestPrepareHolisticReviewEnriched:
         lang = _mock_lang([f1])
         state = empty_state()
 
-        data = prepare_holistic_review(tmp_path, lang, state, files=[f1])
+        data = _call_prepare_holistic_review(tmp_path, lang, state, files=[f1])
 
         assert "workflow" in data
         assert isinstance(data["workflow"], list)
@@ -1643,7 +1643,7 @@ class TestPrepareHolisticReviewEnriched:
         lang = _mock_lang([f1])
         state = empty_state()
 
-        data = prepare_holistic_review(tmp_path, lang, state, files=[f1])
+        data = _call_prepare_holistic_review(tmp_path, lang, state, files=[f1])
 
         assert "investigation_batches" in data
         assert isinstance(data["investigation_batches"], list)
@@ -1654,7 +1654,7 @@ class TestPrepareHolisticReviewEnriched:
         lang = _mock_lang([f1, f2])
         state = empty_state()
 
-        data = prepare_holistic_review(tmp_path, lang, state, files=[f1, f2])
+        data = _call_prepare_holistic_review(tmp_path, lang, state, files=[f1, f2])
 
         full_sweep = next(
             b
@@ -1950,7 +1950,7 @@ class TestNewHolisticDimensions:
                 "suggestion": "Consolidate to fetch",
             },
         ]
-        diff = import_holistic_issues(data, state, "typescript")
+        diff = _call_import_holistic_issues(data, state, "typescript")
         assert diff["new"] == 3
 
     def test_cross_module_prompt_includes_contract_drift_signal(self):
@@ -2320,7 +2320,7 @@ class TestPackageOrganizationDimension:
                 "suggestion": "Move viz files into output/ subpackage",
             }
         ]
-        diff = import_holistic_issues(data, state, "python")
+        diff = _call_import_holistic_issues(data, state, "python")
         assert diff["new"] == 1
 
     def test_investigation_batch_generated(self):

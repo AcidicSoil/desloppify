@@ -8,12 +8,12 @@ from desloppify.app.commands.helpers.query import write_query
 from desloppify.base.coercions import coerce_positive_int
 from desloppify.base.exception_sets import CommandError
 from desloppify.base.output.terminal import colorize
-from desloppify.intelligence import narrative as narrative_mod
+import desloppify.intelligence.narrative.core as narrative_mod
 from desloppify.intelligence import review as review_mod
 
-from . import runtime as review_runtime_mod
 from .helpers import parse_dimensions
 from .packet.policy import coerce_review_batch_file_limit, redacted_review_config
+from .runtime.setup import setup_lang_concrete
 
 
 def do_prepare(
@@ -38,7 +38,7 @@ def do_prepare(
         default=20,
     )
 
-    lang_run, found_files = review_runtime_mod.setup_lang_concrete(lang, path, config)
+    lang_run, found_files = setup_lang_concrete(lang, path, config)
 
     lang_name = lang_run.name
     narrative = narrative_mod.compute_narrative(

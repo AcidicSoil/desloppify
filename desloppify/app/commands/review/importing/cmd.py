@@ -25,7 +25,7 @@ from desloppify.base.exception_sets import (
 )
 from desloppify.base.output.terminal import colorize
 from desloppify.intelligence import integrity as subjective_integrity_mod
-from desloppify.intelligence import narrative as narrative_mod
+import desloppify.intelligence.narrative.core as narrative_mod
 from desloppify.intelligence import review as review_mod
 from desloppify.intelligence.narrative.core import NarrativeContext
 from desloppify.intelligence.review.dimensions import normalize_dimension_name

@@ -276,6 +276,42 @@ def test_normalize_batch_result_accepts_low_score_with_same_dimension_issue():
     assert len(issues) == 1
 
 
+def test_normalize_batch_result_accepts_legacy_findings_alias():
+    assessments, issues, _notes, _quality = batch_core_mod.normalize_batch_result(
+        payload={
+            "assessments": {"logic_clarity": 80.0},
+            "dimension_notes": {
+                "logic_clarity": {
+                    "evidence": ["legacy alias path"],
+                    "impact_scope": "module",
+                    "fix_scope": "single_edit",
+                    "confidence": "medium",
+                    "issues_preventing_higher_score": "",
+                }
+            },
+            "findings": [
+                {
+                    "dimension": "logic_clarity",
+                    "identifier": "legacy_findings_alias",
+                    "summary": "Legacy findings key still normalizes",
+                    "related_files": ["src/a.ts"],
+                    "evidence": ["payload used findings key"],
+                    "suggestion": "continue importing via issues key",
+                    "confidence": "medium",
+                    "impact_scope": "module",
+                    "fix_scope": "single_edit",
+                }
+            ],
+        },
+        allowed_dims={"logic_clarity"},
+        max_batch_issues=max_batch_issues_for_dimension_count(1),
+        abstraction_sub_axes=_ABSTRACTION_SUB_AXES,
+    )
+    assert assessments["logic_clarity"] == 80.0
+    assert len(issues) == 1
+    assert issues[0]["identifier"] == "legacy_findings_alias"
+
+
 def test_normalize_batch_result_accepts_legacy_unreported_risk_key():
     _assessments, _issues, notes, _quality = batch_core_mod.normalize_batch_result(
         payload={

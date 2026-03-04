@@ -8,7 +8,7 @@ import argparse
 def add_plan_parser(sub) -> None:
     p_plan = sub.add_parser(
         "plan",
-        help="Living plan: generate, reorder, cluster, skip, note",
+        help="Living plan: generate, show, resolve, skip, cluster, triage",
         description="""\
 Manage the living plan — a persistent layer on top of the work queue.
 Track custom ordering, clusters, skips, and per-issue annotations.
@@ -162,7 +162,7 @@ examples:
     )
 
     # plan resolve <patterns> --attest [--note]
-    p_done = plan_sub.add_parser(
+    p_resolve = plan_sub.add_parser(
         "resolve",
         help="Mark issues as fixed (shows score movement + next step)",
         epilog="""\
@@ -173,14 +173,14 @@ examples:
     --attest "I have actually ..."  """,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    p_done.add_argument(
+    p_resolve.add_argument(
         "patterns", nargs="+", metavar="PATTERN",
         help="Issue ID(s), detector, file path, glob, or cluster name",
     )
-    p_done.add_argument(
+    p_resolve.add_argument(
         "--note", type=str, default=None, help="Explanation of the fix"
     )
-    p_done.add_argument(
+    p_resolve.add_argument(
         "--attest",
         type=str,
         default=None,
@@ -189,13 +189,13 @@ examples:
             "'I have actually' and 'not gaming'."
         ),
     )
-    p_done.add_argument(
+    p_resolve.add_argument(
         "--confirm",
         action="store_true",
         default=False,
         help="Auto-generate attestation from --note (requires --note)",
     )
-    p_done.add_argument(
+    p_resolve.add_argument(
         "--force-resolve",
         action="store_true",
         default=False,

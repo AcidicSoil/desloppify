@@ -6,14 +6,16 @@ import re
 from pathlib import Path
 
 from desloppify.base.discovery.source import find_py_files
-from desloppify.base.output.fallbacks import log_best_effort_failure
 from desloppify.base.discovery.paths import get_project_root
-from desloppify.languages.python.detectors.smells_ast import (
-    collect_module_constants,
-    detect_ast_smells,
-    detect_duplicate_constants,
-    detect_star_import_no_all,
-    detect_vestigial_parameter,
+from desloppify.base.output.fallbacks import log_best_effort_failure
+from desloppify.languages.python.detectors.smells_ast._dispatch import (
+    _detect_ast_smells as detect_ast_smells,
+)
+from desloppify.languages.python.detectors.smells_ast._source_detectors import (
+    _collect_module_constants as collect_module_constants,
+    _detect_duplicate_constants as detect_duplicate_constants,
+    _detect_star_import_no_all as detect_star_import_no_all,
+    _detect_vestigial_parameter as detect_vestigial_parameter,
 )
 
 

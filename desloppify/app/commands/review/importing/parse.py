@@ -21,6 +21,9 @@ from desloppify.intelligence.review.importing.contracts import (
     ReviewIssuePayload,
     validate_review_issue_payload,
 )
+from desloppify.intelligence.review.importing.payload import (
+    normalize_legacy_findings_alias,
+)
 from desloppify.state import coerce_assessment_score
 
 from .policy import (
@@ -285,11 +288,13 @@ def _normalize_import_root_payload(
     payload = {"issues": raw_payload} if isinstance(raw_payload, list) else raw_payload
     if not isinstance(payload, dict):
         return None, ["issues file must contain a JSON array or object"]
-    # Accept both "issues" (canonical) and "findings" (legacy)
-    if "findings" in payload and "issues" not in payload:
-        payload["issues"] = payload.pop("findings")
-    if "issues" not in payload:
-        return None, ["issues object must contain an 'issues' key"]
+
+    key_error = normalize_legacy_findings_alias(
+        payload,
+        missing_issues_error="issues object must contain an 'issues' key",
+    )
+    if key_error is not None:
+        return None, [key_error]
     return payload, []
 
 

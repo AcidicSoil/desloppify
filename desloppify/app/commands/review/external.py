@@ -16,7 +16,7 @@ from desloppify.base.coercions import coerce_positive_int
 from desloppify.base.discovery.file_paths import safe_write_text
 from desloppify.base.exception_sets import CommandError
 from desloppify.base.output.terminal import colorize
-from desloppify.intelligence import narrative as narrative_mod
+import desloppify.intelligence.narrative.core as narrative_mod
 from desloppify.intelligence import review as review_mod
 
 from .batch.orchestrator import FOLLOWUP_SCAN_TIMEOUT_SECONDS
@@ -24,7 +24,7 @@ from .helpers import parse_dimensions
 from .importing.cmd import do_import, do_validate_import
 from .runner_packets import run_stamp, sha256_file, write_packet_snapshot
 from .runner_process import FollowupScanDeps, run_followup_scan
-from .runtime import setup_lang_concrete
+from .runtime.setup import setup_lang_concrete
 from .runtime_paths import (
     blind_packet_path as _blind_packet_path,
 )
@@ -361,9 +361,11 @@ def _canonical_external_payload(
             " Regenerate output using the session template/instructions.",
         )
 
-    payload = dict(raw_payload)
-    payload.pop("session", None)
-    payload.pop("provenance", None)
+    payload = {
+        key: value
+        for key, value in raw_payload.items()
+        if key not in {"session", "provenance"}
+    }
     payload["provenance"] = {
         "kind": "blind_review_batch_import",
         "blind": True,

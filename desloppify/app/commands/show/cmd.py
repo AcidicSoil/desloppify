@@ -16,7 +16,7 @@ from desloppify.base.exception_sets import PLAN_LOAD_EXCEPTIONS
 from desloppify.base.output.terminal import colorize
 from desloppify.base.tooling import check_config_staleness
 from desloppify.engine.plan import load_plan
-from desloppify.intelligence.narrative import NarrativeContext, compute_narrative
+from desloppify.intelligence.narrative.core import NarrativeContext, compute_narrative
 
 from .concerns_view import _show_concerns
 from .dimension_views import (

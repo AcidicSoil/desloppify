@@ -6,6 +6,8 @@ from typing import Any
 
 from desloppify.engine._state.schema import utc_now
 
+V7_SCHEMA_VERSION = 7
+
 
 def _rename_key(d: dict, old: str, new: str) -> bool:
     if old not in d:
@@ -204,8 +206,90 @@ def migrate_synthesis_to_triage(plan: dict[str, Any]) -> None:
             cluster["triage_version"] = cluster.pop("synthesis_version")
 
 
+def upgrade_plan_to_v7(plan: dict[str, Any]) -> bool:
+    """Apply legacy migrations once and normalize onto v7-only keys.
+
+    Returns ``True`` when any legacy migration or key cleanup was applied.
+    """
+    changed = False
+    original_version = plan.get("version", 1)
+    if not isinstance(original_version, int):
+        original_version = 1
+
+    ensure_container_types(plan)
+    meta = plan.get("epic_triage_meta")
+    queue_order = plan.get("queue_order", [])
+    skipped = plan.get("skipped", {})
+    clusters = plan.get("clusters", {})
+
+    has_synthesis_ids = any(
+        isinstance(item, str) and item.startswith("synthesis::")
+        for item in queue_order
+    )
+    has_synthesis_skips = any(
+        isinstance(item, str) and item.startswith("synthesis::")
+        for item in skipped.keys()
+    )
+    has_cluster_synthesis_versions = any(
+        isinstance(cluster, dict) and "synthesis_version" in cluster
+        for cluster in clusters.values()
+    )
+    has_meta_synthesis_keys = isinstance(meta, dict) and (
+        "synthesized_ids" in meta or "synthesis_stages" in meta
+    )
+
+    needs_legacy_upgrade = (
+        original_version < V7_SCHEMA_VERSION
+        or bool(plan.get("deferred"))
+        or "epics" in plan
+        or "epic_synthesis_meta" in plan
+        or "pending_plan_gate" in plan
+        or "uncommitted_findings" in plan
+        or has_synthesis_ids
+        or has_synthesis_skips
+        or has_cluster_synthesis_versions
+        or has_meta_synthesis_keys
+    )
+
+    if needs_legacy_upgrade:
+        migrate_deferred_to_skipped(plan)
+        migrate_epics_to_clusters(plan)
+        normalize_cluster_defaults(plan)
+        migrate_v5_to_v6(plan)
+        migrate_synthesis_to_triage(plan)
+        changed = True
+    else:
+        normalize_cluster_defaults(plan)
+
+    # Runtime plan contract is v7-only: drop legacy transport keys.
+    for legacy_key in (
+        "epics",
+        "epic_synthesis_meta",
+        "pending_plan_gate",
+        "uncommitted_findings",
+    ):
+        if legacy_key in plan:
+            plan.pop(legacy_key, None)
+            changed = True
+
+    meta = plan.get("epic_triage_meta")
+    if isinstance(meta, dict):
+        if "synthesis_stages" in meta:
+            meta.pop("synthesis_stages", None)
+            changed = True
+        if "synthesized_ids" in meta:
+            meta.pop("synthesized_ids", None)
+            changed = True
+
+    if plan.get("version") != V7_SCHEMA_VERSION:
+        plan["version"] = V7_SCHEMA_VERSION
+        changed = True
+    return changed
+
+
 __all__ = [
     "ensure_container_types",
+    "upgrade_plan_to_v7",
     "migrate_deferred_to_skipped",
     "migrate_epics_to_clusters",
     "migrate_synthesis_to_triage",

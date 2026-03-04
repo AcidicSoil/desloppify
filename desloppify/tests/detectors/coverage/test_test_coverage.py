@@ -20,7 +20,7 @@ from desloppify.engine.detectors.coverage.mapping import (
     naming_based_mapping,
     transitive_coverage,
 )
-from desloppify.engine.detectors.test_coverage import detect_test_coverage
+from desloppify.engine.detectors.test_coverage.detector import detect_test_coverage
 from desloppify.engine.detectors.test_coverage.heuristics import _has_testable_logic
 from desloppify.engine.detectors.test_coverage.io import (
     clear_coverage_read_warning_cache_for_tests,

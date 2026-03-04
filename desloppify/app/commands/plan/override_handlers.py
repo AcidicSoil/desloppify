@@ -13,7 +13,7 @@ from desloppify.app.commands.helpers.state import require_completed_scan, state_
 from desloppify.app.commands.plan._resolve import resolve_ids_from_patterns
 from desloppify.app.commands.plan.triage_playbook import TRIAGE_STAGE_DEPENDENCIES
 from desloppify.app.commands.resolve.cmd import cmd_resolve
-from desloppify.app.commands.resolve.selection import (
+from desloppify.app.commands.helpers.attestation import (
     show_attestation_requirement,
     show_note_length_requirement,
     validate_attestation,
@@ -23,6 +23,7 @@ from desloppify.base.discovery.file_paths import safe_write_text
 from desloppify.base.exception_sets import PLAN_LOAD_EXCEPTIONS
 from desloppify.base.output.fallbacks import log_best_effort_failure
 from desloppify.base.output.terminal import colorize
+from desloppify.base.output.user_message import print_user_message
 from desloppify.engine._plan.skip_policy import (
     SKIP_KIND_LABELS,
     skip_kind_from_flags,
@@ -280,6 +281,13 @@ def cmd_plan_skip(args: argparse.Namespace) -> None:
     print(colorize(f"  {SKIP_KIND_LABELS[kind]} {count} item(s).", "green"))
     if review_after:
         print(colorize(f"  Will re-surface after {review_after} scan(s).", "dim"))
+    print_user_message(
+        "Hey — if skipping was the right call, just continue with"
+        " what you were doing. If you think a broader re-triage is"
+        " needed, use `desloppify plan triage`. Run `desloppify"
+        " plan --help` to see all available plan tools. Otherwise"
+        " no need to reply, just keep going."
+    )
 
 
 def cmd_plan_unskip(args: argparse.Namespace) -> None:

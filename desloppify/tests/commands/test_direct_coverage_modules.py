@@ -18,9 +18,9 @@ import desloppify.app.commands.review.importing.cmd as review_import
 import desloppify.app.commands.review.importing.helpers as review_import_helpers
 import desloppify.app.commands.review.prepare as review_prepare
 import desloppify.app.commands.review.runner_process as review_runner_helpers
-import desloppify.app.commands.review.runtime as review_runtime
-import desloppify.app.commands.scan as scan_pkg
+import desloppify.app.commands.review.runtime.setup as review_runtime_setup
 import desloppify.app.commands.scan.artifacts as scan_artifacts
+import desloppify.app.commands.scan.cmd as scan_cmd_mod
 import desloppify.app.commands.scan.reporting.presentation as scan_reporting_presentation
 import desloppify.app.commands.scan.reporting.subjective as scan_reporting_subjective
 import desloppify.app.commands.scan.workflow as scan_workflow
@@ -57,7 +57,7 @@ import desloppify.languages.gdscript.extractors as gdscript_extractors
 import desloppify.languages.gdscript.phases as gdscript_phases
 import desloppify.languages.gdscript.review as gdscript_review
 import desloppify.languages.python.detectors.private_imports as private_imports
-import desloppify.languages.python.detectors.smells_ast as smells_ast
+import desloppify.languages.python.detectors.smells_ast._dispatch as smells_ast_dispatch
 import desloppify.languages.python.detectors.smells_ast._helpers as smells_ast_shared
 import desloppify.languages.python.detectors.smells_ast._source_detectors as smells_ast_source_detectors
 import desloppify.languages.python.detectors.smells_ast._tree_context_detectors as smells_ast_tree_context_detectors
@@ -111,7 +111,7 @@ def test_smoke_commands():
         move_reporting.print_file_move_plan,
         move_reporting.print_directory_move_plan,
         move_cmd_mod.cmd_move,
-        scan_pkg.cmd_scan,
+        scan_cmd_mod.cmd_scan,
         scan_artifacts.build_scan_query_payload,
         scan_artifacts.emit_scorecard_badge,
         scan_workflow.prepare_scan_runtime,
@@ -126,7 +126,7 @@ def test_smoke_commands():
         review_import_helpers.load_import_issues_data,
         review_prepare.do_prepare,
         review_runner_helpers.run_codex_batch,
-        review_runtime.setup_lang,
+        review_runtime_setup.setup_lang,
         status_render.show_tier_progress_table,
         status_summary.score_summary_lines,
         scan_reporting_presentation.show_score_model_breakdown,
@@ -162,7 +162,7 @@ def test_smoke_engine():
     _assert_all_callables(
         private_imports.detect_private_imports,
         private_imports._is_dunder,
-        smells_ast.detect_ast_smells,
+        smells_ast_dispatch._detect_ast_smells,
         smells_ast_shared._looks_like_path_var,
         smells_ast_source_detectors._detect_duplicate_constants,
         smells_ast_source_detectors._detect_vestigial_parameter,

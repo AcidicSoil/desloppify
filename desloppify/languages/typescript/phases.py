@@ -34,7 +34,7 @@ from desloppify.languages._framework.issue_factories import (
     make_smell_issues,
     make_unused_issues,
 )
-from desloppify.languages._framework.runtime import LangRun
+from desloppify.languages._framework.base.types import LangRuntimeContract
 from desloppify.languages.typescript.detectors import concerns as concerns_detector_mod
 from desloppify.languages.typescript.detectors import (
     deprecated as deprecated_detector_mod,
@@ -134,7 +134,7 @@ TS_SKIP_DIRS = {"src/shared/components/ui"}
 # ── Phase runners ──────────────────────────────────────────
 
 
-def phase_logs(path: Path, lang: LangRun) -> tuple[list[Issue], dict[str, int]]:
+def phase_logs(path: Path, lang: LangRuntimeContract) -> tuple[list[Issue], dict[str, int]]:
     log_result = logs_detector_mod.detect_logs_result(path)
     log_entries = log_result.entries
     total_files = log_result.population_size
@@ -161,14 +161,14 @@ def phase_logs(path: Path, lang: LangRun) -> tuple[list[Issue], dict[str, int]]:
     return results, {"logs": adjust_potential(lang.zone_map, total_files)}
 
 
-def phase_unused(path: Path, lang: LangRun) -> tuple[list[Issue], dict[str, int]]:
+def phase_unused(path: Path, lang: LangRuntimeContract) -> tuple[list[Issue], dict[str, int]]:
     entries, total_files = unused_detector_mod.detect_unused(path)
     return make_unused_issues(entries, log), {
         "unused": adjust_potential(lang.zone_map, total_files),
     }
 
 
-def phase_exports(path: Path, lang: LangRun) -> tuple[list[Issue], dict[str, int]]:
+def phase_exports(path: Path, lang: LangRuntimeContract) -> tuple[list[Issue], dict[str, int]]:
     export_entries, total_exports = exports_detector_mod.detect_dead_exports(path)
     results = []
     for e in export_entries:
@@ -188,7 +188,7 @@ def phase_exports(path: Path, lang: LangRun) -> tuple[list[Issue], dict[str, int
 
 
 def phase_deprecated(
-    path: Path, lang: LangRun
+    path: Path, lang: LangRuntimeContract
 ) -> tuple[list[Issue], dict[str, int]]:
     dep_result = deprecated_detector_mod.detect_deprecated_result(path)
     dep_entries = dep_result.entries
@@ -217,7 +217,7 @@ def phase_deprecated(
 
 
 def phase_structural(
-    path: Path, lang: LangRun
+    path: Path, lang: LangRuntimeContract
 ) -> tuple[list[Issue], dict[str, int]]:
     structural: dict[str, dict] = {}
 
@@ -373,7 +373,7 @@ def _make_boundary_issues(
     single_entries: list[dict],
     path: Path,
     graph: dict,
-    lang: LangRun,
+    lang: LangRuntimeContract,
     shared_prefix: str,
     tools_prefix: str,
 ) -> tuple[list[dict], int]:
@@ -421,7 +421,7 @@ def _make_boundary_issues(
     return results, total_shared
 
 
-def phase_coupling(path: Path, lang: LangRun) -> tuple[list[Issue], dict[str, int]]:
+def phase_coupling(path: Path, lang: LangRuntimeContract) -> tuple[list[Issue], dict[str, int]]:
     results = []
     graph = deps_detector_mod.build_dep_graph(path)
     lang.dep_graph = graph
@@ -580,7 +580,7 @@ def phase_coupling(path: Path, lang: LangRun) -> tuple[list[Issue], dict[str, in
     return results, potentials
 
 
-def phase_smells(path: Path, lang: LangRun) -> tuple[list[Issue], dict[str, int]]:
+def phase_smells(path: Path, lang: LangRuntimeContract) -> tuple[list[Issue], dict[str, int]]:
     smell_entries, total_smell_files = smells_detector_mod.detect_smells(path)
     results = make_smell_issues(smell_entries, log)
 

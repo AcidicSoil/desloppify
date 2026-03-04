@@ -116,7 +116,7 @@ def review_issue_snapshot_hash(state: StateModel) -> str:
 def compute_new_issue_ids(plan: dict, state: StateModel) -> set[str]:
     """Return open review/concerns IDs that appeared since the last triage."""
     meta = plan.get("epic_triage_meta", {})
-    triaged = set(meta.get("triaged_ids", meta.get("synthesized_ids", [])))
+    triaged = set(meta.get("triaged_ids", []))
     current = {
         issue_id
         for issue_id, issue in state.get("issues", {}).items()

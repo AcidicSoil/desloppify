@@ -377,16 +377,16 @@ def _fixer_help_lines(langs: list[str]) -> list[str]:
     return fixer_help_lines
 
 
-def _add_fix_parser(sub, langs: list[str]) -> None:
-    p_fix = sub.add_parser(
+def _add_autofix_parser(sub, langs: list[str]) -> None:
+    p_autofix = sub.add_parser(
         "autofix",
         help="Auto-fix mechanical issues",
         epilog="\n".join(_fixer_help_lines(langs)),
     )
-    p_fix.add_argument("fixer", type=str, help="What to fix")
-    p_fix.add_argument("--path", type=str, default=None, help="Project root directory (default: auto-detected)")
-    p_fix.add_argument("--state", type=str, default=None, help="Path to state file")
-    p_fix.add_argument(
+    p_autofix.add_argument("fixer", type=str, help="What to fix")
+    p_autofix.add_argument("--path", type=str, default=None, help="Project root directory (default: auto-detected)")
+    p_autofix.add_argument("--state", type=str, default=None, help="Path to state file")
+    p_autofix.add_argument(
         "--dry-run",
         action="store_true",
         help="Show what would change without modifying files",

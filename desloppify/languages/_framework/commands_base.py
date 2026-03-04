@@ -303,30 +303,6 @@ def build_standard_detect_registry(
     }
 
 
-def make_standard_detect_registry_getter(
-    *,
-    cmd_deps: Callable[[argparse.Namespace], None],
-    cmd_cycles: Callable[[argparse.Namespace], None],
-    cmd_orphaned: Callable[[argparse.Namespace], None],
-    cmd_dupes: Callable[[argparse.Namespace], None],
-    cmd_large: Callable[[argparse.Namespace], None],
-    cmd_complexity: Callable[[argparse.Namespace], None],
-) -> Callable[[], dict[str, Callable[[argparse.Namespace], None]]]:
-    """Return a ``get_detect_commands`` callable backed by shared registry logic."""
-
-    def get_detect_commands() -> dict[str, Callable[[argparse.Namespace], None]]:
-        return build_standard_detect_registry(
-            cmd_deps=cmd_deps,
-            cmd_cycles=cmd_cycles,
-            cmd_orphaned=cmd_orphaned,
-            cmd_dupes=cmd_dupes,
-            cmd_large=cmd_large,
-            cmd_complexity=cmd_complexity,
-        )
-
-    return get_detect_commands
-
-
 # ── Scaffold defaults ─────────────────────────────────────
 
 SCAFFOLD_VERIFY_HINT = "desloppify detect deps"

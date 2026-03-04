@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from desloppify.engine._plan.operations import merge_clusters
+from desloppify.engine._plan.operations_cluster import merge_clusters
 from desloppify.engine._plan.schema import empty_plan, ensure_plan_defaults
 
 # ---------------------------------------------------------------------------

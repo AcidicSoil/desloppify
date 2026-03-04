@@ -125,7 +125,7 @@ def build_triage_stage_items(plan: dict, state: dict) -> list[WorkQueueItem]:
     stage_names = ("observe", "reflect", "organize", "commit")
 
     items: list[WorkQueueItem] = []
-    for idx, (sid, name) in enumerate(zip(TRIAGE_STAGE_IDS, stage_names, strict=False)):
+    for sid, name in zip(TRIAGE_STAGE_IDS, stage_names, strict=False):
         if sid not in present:
             continue
         if name in confirmed:
@@ -149,8 +149,6 @@ def build_triage_stage_items(plan: dict, state: dict) -> list[WorkQueueItem]:
             "detector": "triage",
             "file": ".",
             "kind": "workflow_stage",
-            "stage_name": name,
-            "stage_index": idx,
             "summary": f"Triage: {label_map.get(name, name)}",
             "detail": {
                 "total_review_issues": open_review_count,

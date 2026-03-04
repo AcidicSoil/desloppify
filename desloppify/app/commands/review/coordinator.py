@@ -18,7 +18,7 @@ from .packet.build import (
     require_non_empty_packet,
 )
 from .packet.policy import redacted_review_config
-from .runtime import setup_lang_concrete
+from .runtime.setup import setup_lang_concrete
 from .runtime_paths import (
     blind_packet_path,
     review_packet_dir,

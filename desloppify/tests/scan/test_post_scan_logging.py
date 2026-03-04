@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from desloppify.engine._plan.operations import append_log_entry
+from desloppify.engine._plan.operations_meta import append_log_entry
 from desloppify.engine._plan.schema import empty_plan
 
 # ---------------------------------------------------------------------------

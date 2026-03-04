@@ -1,4 +1,4 @@
-"""Shared persistence helpers for resolve command handlers."""
+"""Shared persistence helpers for command handlers."""
 
 from __future__ import annotations
 

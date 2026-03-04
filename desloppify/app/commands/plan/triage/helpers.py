@@ -5,16 +5,16 @@ from __future__ import annotations
 import argparse
 from collections import defaultdict
 
-from desloppify.app.commands.helpers.runtime import command_runtime
 from desloppify.base.output.terminal import colorize
 from desloppify.engine.plan import (
     TRIAGE_IDS,
     TRIAGE_STAGE_IDS,
     purge_ids,
     review_issue_snapshot_hash,
-    save_plan,
 )
 from desloppify.state import utc_now
+
+from .services import TriageServices, default_triage_services
 
 _STAGE_ORDER = ["observe", "reflect", "organize"]
 
@@ -121,9 +121,16 @@ def _manual_clusters_with_issues(plan: dict) -> list[str]:
         if c.get("issue_ids") and not c.get("auto")
     ]
 
-def _apply_completion(args: argparse.Namespace, plan: dict, strategy: str) -> None:
+def _apply_completion(
+    args: argparse.Namespace,
+    plan: dict,
+    strategy: str,
+    *,
+    services: TriageServices | None = None,
+) -> None:
     """Shared completion logic: update meta, remove triage::pending, save."""
-    runtime = command_runtime(args)
+    resolved_services = services or default_triage_services()
+    runtime = resolved_services.command_runtime(args)
     state = runtime.state
 
     organized, total, clusters = _triage_coverage(
@@ -158,7 +165,7 @@ def _apply_completion(args: argparse.Namespace, plan: dict, strategy: str) -> No
     meta.pop("stage_refresh_required", None)
     meta.pop("stage_snapshot_hash", None)
 
-    save_plan(plan)
+    resolved_services.save_plan(plan)
 
     cluster_count = len([c for c in clusters.values() if c.get("issue_ids")])
     print(colorize(f"  Triage complete: {organized}/{total} issues in {cluster_count} cluster(s).", "green"))
@@ -182,6 +189,24 @@ def _count_log_activity_since(plan: dict, since: str) -> dict[str, int]:
             counts[entry.get("action", "unknown")] += 1
     return dict(counts)
 
+
+def has_triage_in_queue(plan: dict) -> bool:
+    """Public alias for triage queue-presence checks."""
+    return _has_triage_in_queue(plan)
+
+
+def inject_triage_stages(plan: dict) -> None:
+    """Public alias for triage stage injection."""
+    _inject_triage_stages(plan)
+
+
+def triage_coverage(
+    plan: dict,
+    open_review_ids: set[str] | None = None,
+) -> tuple[int, int, dict]:
+    """Public alias for triage coverage computation."""
+    return _triage_coverage(plan, open_review_ids=open_review_ids)
+
 __all__ = [
     "_apply_completion",
     "_cascade_clear_later_confirmations",
@@ -195,4 +220,7 @@ __all__ = [
     "_print_cascade_clear_feedback",
     "_purge_triage_stage",
     "_triage_coverage",
+    "has_triage_in_queue",
+    "inject_triage_stages",
+    "triage_coverage",
 ]

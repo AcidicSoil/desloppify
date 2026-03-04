@@ -9,28 +9,7 @@ import desloppify.app.commands.scan.reporting.agent_context as scan_reporting_ll
 import desloppify.app.commands.scan.reporting.dimensions as scan_reporting_dimensions_mod
 import desloppify.app.commands.scan.reporting.integrity_report as integrity_report_mod
 import desloppify.app.commands.scan.reporting.summary as scan_reporting_summary_mod
-
-
-def _patch_score_snapshot(
-    monkeypatch,
-    *,
-    overall: float | None = None,
-    objective: float | None = None,
-    strict: float | None = None,
-    verified: float | None = None,
-) -> None:
-    import desloppify.state as state_mod
-
-    monkeypatch.setattr(
-        state_mod,
-        "score_snapshot",
-        lambda _state: state_mod.ScoreSnapshot(
-            overall=overall,
-            objective=objective,
-            strict=strict,
-            verified=verified,
-        ),
-    )
+import desloppify.state as state_mod
 
 
 def test_show_diff_summary_prints_changes_and_suspects(capsys):
@@ -50,7 +29,16 @@ def test_show_diff_summary_prints_changes_and_suspects(capsys):
 
 
 def test_show_score_delta_handles_unavailable_scores(monkeypatch, capsys):
-    _patch_score_snapshot(monkeypatch)
+    monkeypatch.setattr(
+        state_mod,
+        "score_snapshot",
+        lambda _state: state_mod.ScoreSnapshot(
+            overall=None,
+            objective=None,
+            strict=None,
+            verified=None,
+        ),
+    )
 
     scan_reporting_summary_mod.show_score_delta(
         state={"stats": {"open": 1, "total": 2}},
@@ -63,12 +51,15 @@ def test_show_score_delta_handles_unavailable_scores(monkeypatch, capsys):
 
 
 def test_show_score_delta_prints_scores_and_wontfix_gap(monkeypatch, capsys):
-    _patch_score_snapshot(
-        monkeypatch,
-        overall=90.0,
-        objective=88.0,
-        strict=80.0,
-        verified=79.0,
+    monkeypatch.setattr(
+        state_mod,
+        "score_snapshot",
+        lambda _state: state_mod.ScoreSnapshot(
+            overall=90.0,
+            objective=88.0,
+            strict=80.0,
+            verified=79.0,
+        ),
     )
 
     scan_reporting_summary_mod.show_score_delta(
@@ -87,12 +78,15 @@ def test_show_score_delta_prints_scores_and_wontfix_gap(monkeypatch, capsys):
 
 
 def test_show_score_delta_prints_legend_on_first_scan(monkeypatch, capsys):
-    _patch_score_snapshot(
-        monkeypatch,
-        overall=90.0,
-        objective=88.0,
-        strict=85.0,
-        verified=84.0,
+    monkeypatch.setattr(
+        state_mod,
+        "score_snapshot",
+        lambda _state: state_mod.ScoreSnapshot(
+            overall=90.0,
+            objective=88.0,
+            strict=85.0,
+            verified=84.0,
+        ),
     )
 
     scan_reporting_summary_mod.show_score_delta(
@@ -109,12 +103,15 @@ def test_show_score_delta_prints_legend_on_first_scan(monkeypatch, capsys):
 
 
 def test_show_score_delta_hides_legend_on_subsequent_scans(monkeypatch, capsys):
-    _patch_score_snapshot(
-        monkeypatch,
-        overall=95.0,
-        objective=94.0,
-        strict=93.0,
-        verified=92.0,
+    monkeypatch.setattr(
+        state_mod,
+        "score_snapshot",
+        lambda _state: state_mod.ScoreSnapshot(
+            overall=95.0,
+            objective=94.0,
+            strict=93.0,
+            verified=92.0,
+        ),
     )
     # Ensure not in agent environment so the non-agent path hides the legend
     monkeypatch.setattr(scan_reporting_summary_mod, "is_agent_environment", lambda: False)
@@ -132,12 +129,15 @@ def test_show_score_delta_hides_legend_on_subsequent_scans(monkeypatch, capsys):
 
 def test_show_score_delta_shows_legend_in_agent_environment(monkeypatch, capsys):
     """Agent environments always see the score legend, even on subsequent scans."""
-    _patch_score_snapshot(
-        monkeypatch,
-        overall=95.0,
-        objective=94.0,
-        strict=93.0,
-        verified=92.0,
+    monkeypatch.setattr(
+        state_mod,
+        "score_snapshot",
+        lambda _state: state_mod.ScoreSnapshot(
+            overall=95.0,
+            objective=94.0,
+            strict=93.0,
+            verified=92.0,
+        ),
     )
     monkeypatch.setattr(scan_reporting_summary_mod, "is_agent_environment", lambda: True)
 
@@ -154,12 +154,15 @@ def test_show_score_delta_shows_legend_in_agent_environment(monkeypatch, capsys)
 
 
 def test_show_score_delta_prints_scores_without_open_breakdown(monkeypatch, capsys):
-    _patch_score_snapshot(
-        monkeypatch,
-        overall=95.0,
-        objective=95.0,
-        strict=94.0,
-        verified=93.0,
+    monkeypatch.setattr(
+        state_mod,
+        "score_snapshot",
+        lambda _state: state_mod.ScoreSnapshot(
+            overall=95.0,
+            objective=95.0,
+            strict=94.0,
+            verified=93.0,
+        ),
     )
 
     scan_reporting_summary_mod.show_score_delta(
@@ -183,12 +186,15 @@ def test_show_score_delta_prints_scores_without_open_breakdown(monkeypatch, caps
 
 
 def test_show_score_delta_surfaces_subjective_integrity_penalty(monkeypatch, capsys):
-    _patch_score_snapshot(
-        monkeypatch,
-        overall=89.0,
-        objective=92.0,
-        strict=89.0,
-        verified=88.0,
+    monkeypatch.setattr(
+        state_mod,
+        "score_snapshot",
+        lambda _state: state_mod.ScoreSnapshot(
+            overall=89.0,
+            objective=92.0,
+            strict=89.0,
+            verified=88.0,
+        ),
     )
 
     scan_reporting_summary_mod.show_score_delta(
@@ -213,12 +219,15 @@ def test_show_score_delta_surfaces_subjective_integrity_penalty(monkeypatch, cap
 def test_show_score_delta_escalates_repeated_subjective_integrity_penalty(
     monkeypatch, capsys
 ):
-    _patch_score_snapshot(
-        monkeypatch,
-        overall=89.0,
-        objective=92.0,
-        strict=89.0,
-        verified=88.0,
+    monkeypatch.setattr(
+        state_mod,
+        "score_snapshot",
+        lambda _state: state_mod.ScoreSnapshot(
+            overall=89.0,
+            objective=92.0,
+            strict=89.0,
+            verified=88.0,
+        ),
     )
 
     scan_reporting_summary_mod.show_score_delta(
@@ -245,7 +254,7 @@ def test_show_score_delta_escalates_repeated_subjective_integrity_penalty(
 
 
 def test_show_post_scan_analysis_surfaces_warnings_and_headline(monkeypatch, capsys):
-    import desloppify.intelligence.narrative as narrative_mod
+    import desloppify.intelligence.narrative.core as narrative_mod
 
     monkeypatch.setattr(
         narrative_mod,
@@ -290,7 +299,7 @@ def test_show_post_scan_analysis_surfaces_warnings_and_headline(monkeypatch, cap
 def test_show_post_scan_analysis_no_committee_sections(
     monkeypatch, capsys
 ):
-    import desloppify.intelligence.narrative as narrative_mod
+    import desloppify.intelligence.narrative.core as narrative_mod
 
     monkeypatch.setattr(
         narrative_mod,
@@ -316,7 +325,7 @@ def test_show_post_scan_analysis_no_committee_sections(
 
 
 def test_show_post_scan_analysis_warns_when_scan_coverage_reduced(monkeypatch, capsys):
-    import desloppify.intelligence.narrative as narrative_mod
+    import desloppify.intelligence.narrative.core as narrative_mod
     import desloppify.state as state_mod
 
     monkeypatch.setattr(
@@ -360,7 +369,16 @@ def test_show_post_scan_analysis_warns_when_scan_coverage_reduced(monkeypatch, c
 
 
 def test_show_score_integrity_surfaces_wontfix_and_ignored(monkeypatch, capsys):
-    _patch_score_snapshot(monkeypatch, overall=92.0, strict=70.0)
+    monkeypatch.setattr(
+        state_mod,
+        "score_snapshot",
+        lambda _state: state_mod.ScoreSnapshot(
+            overall=92.0,
+            objective=None,
+            strict=70.0,
+            verified=None,
+        ),
+    )
 
     integrity_report_mod.show_score_integrity(
         state={
@@ -425,12 +443,15 @@ def test_print_llm_summary_respects_env_and_includes_dimension_table(
     import desloppify.engine._scoring.policy.core as scoring_policy_mod
     monkeypatch.setenv("DESLOPPIFY_AGENT", "1")
     monkeypatch.delenv("CLAUDE_CODE", raising=False)
-    _patch_score_snapshot(
-        monkeypatch,
-        overall=91.0,
-        objective=90.0,
-        strict=88.0,
-        verified=87.0,
+    monkeypatch.setattr(
+        state_mod,
+        "score_snapshot",
+        lambda _state: state_mod.ScoreSnapshot(
+            overall=91.0,
+            objective=90.0,
+            strict=88.0,
+            verified=87.0,
+        ),
     )
     monkeypatch.setattr(
         scoring_policy_mod,

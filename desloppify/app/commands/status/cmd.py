@@ -34,7 +34,7 @@ from desloppify.engine.plan import load_plan
 from desloppify.engine.planning.scorecard_projection import (
     scorecard_dimensions_payload,
 )
-from desloppify.intelligence.narrative import NarrativeContext, compute_narrative
+from desloppify.intelligence.narrative.core import NarrativeContext, compute_narrative
 
 from .render import (
     print_open_scope_breakdown,

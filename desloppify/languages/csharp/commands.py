@@ -14,9 +14,9 @@ from desloppify.engine.detectors.orphaned import (
     detect_orphaned_files,
 )
 from desloppify.languages._framework.commands_base import (
+    build_standard_detect_registry,
     make_cmd_complexity,
     make_cmd_large,
-    make_standard_detect_registry_getter,
 )
 from desloppify.languages.csharp.detectors.deps import (
     build_dep_graph,
@@ -122,11 +122,12 @@ def cmd_dupes(args: argparse.Namespace) -> None:
     print_table(["Function A", "Function B", "Sim", "Kind"], rows, [40, 40, 5, 14])
 
 
-get_detect_commands = make_standard_detect_registry_getter(
-    cmd_deps=cmd_deps,
-    cmd_cycles=cmd_cycles,
-    cmd_orphaned=cmd_orphaned,
-    cmd_dupes=cmd_dupes,
-    cmd_large=cmd_large,
-    cmd_complexity=cmd_complexity,
-)
+def get_detect_commands():
+    return build_standard_detect_registry(
+        cmd_deps=cmd_deps,
+        cmd_cycles=cmd_cycles,
+        cmd_orphaned=cmd_orphaned,
+        cmd_dupes=cmd_dupes,
+        cmd_large=cmd_large,
+        cmd_complexity=cmd_complexity,
+    )

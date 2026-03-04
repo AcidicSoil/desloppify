@@ -5,13 +5,13 @@ from __future__ import annotations
 import argparse
 
 from desloppify.languages._framework.commands_base import (
+    build_standard_detect_registry,
     make_cmd_complexity,
     make_cmd_cycles,
     make_cmd_deps,
     make_cmd_dupes,
     make_cmd_large,
     make_cmd_orphaned,
-    make_standard_detect_registry_getter,
 )
 from desloppify.languages.dart.detectors.deps import build_dep_graph
 from desloppify.languages.dart.extractors import extract_functions, find_dart_files
@@ -68,11 +68,12 @@ def cmd_dupes(args: argparse.Namespace) -> None:
     _cmd_dupes_impl(args)
 
 
-get_detect_commands = make_standard_detect_registry_getter(
-    cmd_deps=cmd_deps,
-    cmd_cycles=cmd_cycles,
-    cmd_orphaned=cmd_orphaned,
-    cmd_dupes=cmd_dupes,
-    cmd_large=cmd_large,
-    cmd_complexity=cmd_complexity,
-)
+def get_detect_commands():
+    return build_standard_detect_registry(
+        cmd_deps=cmd_deps,
+        cmd_cycles=cmd_cycles,
+        cmd_orphaned=cmd_orphaned,
+        cmd_dupes=cmd_dupes,
+        cmd_large=cmd_large,
+        cmd_complexity=cmd_complexity,
+    )

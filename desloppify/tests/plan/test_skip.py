@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
-from desloppify.engine._plan.operations import (
+from desloppify.engine._plan.operations_cluster import (
     add_to_cluster,
-    append_log_entry,
     create_cluster,
-    move_items,
-    purge_ids,
+)
+from desloppify.engine._plan.operations_lifecycle import purge_ids
+from desloppify.engine._plan.operations_meta import append_log_entry
+from desloppify.engine._plan.operations_queue import move_items
+from desloppify.engine._plan.operations_skip import (
     resurface_stale_skips,
     skip_items,
     unskip_items,

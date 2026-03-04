@@ -4,17 +4,8 @@ from __future__ import annotations
 
 import argparse
 
-from desloppify.app.commands.helpers.runtime import command_runtime
 from desloppify.base.output.terminal import colorize
 from desloppify.base.output.user_message import print_user_message
-from desloppify.engine.plan import (
-    append_log_entry,
-    collect_triage_input,
-    detect_recurring_patterns,
-    extract_issue_citations,
-    load_plan,
-    save_plan,
-)
 from desloppify.state import utc_now
 
 from .display import _print_organize_result, _print_reflect_result
@@ -42,9 +33,14 @@ from ._stage_validation import (
     _require_reflect_stage_for_organize,
     _validate_recurring_dimension_mentions,
 )
+from .services import TriageServices, default_triage_services
 
 
-def _cmd_stage_observe(args: argparse.Namespace) -> None:
+def _cmd_stage_observe(
+    args: argparse.Namespace,
+    *,
+    services: TriageServices | None = None,
+) -> None:
     """Record the OBSERVE stage: agent analyses themes and root causes.
 
     No citation gate — the point is genuine analysis, not ID-stuffing.
@@ -52,16 +48,17 @@ def _cmd_stage_observe(args: argparse.Namespace) -> None:
     """
     report: str | None = getattr(args, "report", None)
 
-    runtime = command_runtime(args)
+    resolved_services = services or default_triage_services()
+    runtime = resolved_services.command_runtime(args)
     state = runtime.state
-    plan = load_plan()
+    plan = resolved_services.load_plan()
 
     # Auto-start: inject triage stage IDs if not present
     if not _has_triage_in_queue(plan):
         _inject_triage_stages(plan)
         meta = plan.setdefault("epic_triage_meta", {})
         meta["triage_stages"] = {}
-        save_plan(plan)
+        resolved_services.save_plan(plan)
         print(colorize("  Planning mode auto-started (4 stages queued).", "cyan"))
 
     meta = plan.setdefault("epic_triage_meta", {})
@@ -74,7 +71,7 @@ def _cmd_stage_observe(args: argparse.Namespace) -> None:
         _print_observe_report_requirement()
         return
 
-    si = collect_triage_input(plan, state)
+    si = resolved_services.collect_triage_input(plan, state)
     issue_count = len(si.open_issues)
 
     # Edge case: 0 issues
@@ -87,7 +84,7 @@ def _cmd_stage_observe(args: argparse.Namespace) -> None:
             existing_stage=existing_stage,
             is_reuse=is_reuse,
         )
-        save_plan(plan)
+        resolved_services.save_plan(plan)
         print(colorize("  Observe stage recorded (no issues to analyse).", "green"))
         if is_reuse:
             print(colorize("  Observe data preserved (no changes).", "dim"))
@@ -104,7 +101,7 @@ def _cmd_stage_observe(args: argparse.Namespace) -> None:
 
     # Save stage (still extract citations for analytics, but don't gate on them)
     valid_ids = set(si.open_issues.keys())
-    cited = extract_issue_citations(report, valid_ids)
+    cited = resolved_services.extract_issue_citations(report, valid_ids)
 
     cleared = _record_observe_stage(
         stages,
@@ -115,15 +112,15 @@ def _cmd_stage_observe(args: argparse.Namespace) -> None:
         is_reuse=is_reuse,
     )
 
-    save_plan(plan)
+    resolved_services.save_plan(plan)
 
-    append_log_entry(
+    resolved_services.append_log_entry(
         plan,
         "triage_observe",
         actor="user",
         detail={"issue_count": issue_count, "cited_ids": sorted(cited), "reuse": is_reuse},
     )
-    save_plan(plan)
+    resolved_services.save_plan(plan)
 
     print(
         colorize(
@@ -141,16 +138,21 @@ def _cmd_stage_observe(args: argparse.Namespace) -> None:
 
     if not is_reuse:
         print_user_message(
-            "Hey — your job right now is to really understand these"
-            " issues. Go deep: find the root causes, spot where issues"
-            " contradict each other, and flag anything that's noise or"
-            " over-engineering. This is the foundation for everything"
-            " else, so don't rush it. Confirm and continue to reflect"
-            " — no need to stop for my input unless I've asked you to."
+            "Hey — observe is recorded. Before you confirm, make"
+            " sure you really explored the codebase — deploy"
+            " sub-agents if needed, find the root causes, understand"
+            " how issues relate to each other. Don't just skim."
+            " Once you're confident in your analysis, confirm and"
+            " continue to reflect. No need to stop for my input"
+            " unless I've asked you to."
         )
 
 
-def _cmd_stage_reflect(args: argparse.Namespace) -> None:
+def _cmd_stage_reflect(
+    args: argparse.Namespace,
+    *,
+    services: TriageServices | None = None,
+) -> None:
     """Record the REFLECT stage: compare current issues against completed work.
 
     Forces the agent to consider what was previously resolved and whether
@@ -161,9 +163,10 @@ def _cmd_stage_reflect(args: argparse.Namespace) -> None:
     report: str | None = getattr(args, "report", None)
     attestation: str | None = getattr(args, "attestation", None)
 
-    runtime = command_runtime(args)
+    resolved_services = services or default_triage_services()
+    runtime = resolved_services.command_runtime(args)
     state = runtime.state
-    plan = load_plan()
+    plan = resolved_services.load_plan()
 
     if not _has_triage_in_queue(plan):
         print(colorize("  No planning stages in the queue — nothing to reflect on.", "yellow"))
@@ -187,7 +190,7 @@ def _cmd_stage_reflect(args: argparse.Namespace) -> None:
         print(colorize('  Run: desloppify plan triage --stage observe --report "..."', "dim"))
         return
 
-    si = collect_triage_input(plan, state)
+    si = resolved_services.collect_triage_input(plan, state)
 
     # Fold-confirm: auto-confirm observe if attestation provided
     if not _auto_confirm_observe_if_attested(
@@ -208,7 +211,10 @@ def _cmd_stage_reflect(args: argparse.Namespace) -> None:
         return
 
     # Detect recurring patterns
-    recurring = detect_recurring_patterns(si.open_issues, si.resolved_issues)
+    recurring = resolved_services.detect_recurring_patterns(
+        si.open_issues,
+        si.resolved_issues,
+    )
     recurring_dims = sorted(recurring.keys())
 
     # If recurring patterns exist, report must mention at least one dimension
@@ -237,9 +243,9 @@ def _cmd_stage_reflect(args: argparse.Namespace) -> None:
         stages["reflect"]["confirmed_text"] = existing_stage.get("confirmed_text", "")
     cleared = _cascade_clear_later_confirmations(stages, "reflect")
 
-    save_plan(plan)
+    resolved_services.save_plan(plan)
 
-    append_log_entry(
+    resolved_services.append_log_entry(
         plan,
         "triage_reflect",
         actor="user",
@@ -249,7 +255,7 @@ def _cmd_stage_reflect(args: argparse.Namespace) -> None:
             "reuse": is_reuse,
         },
     )
-    save_plan(plan)
+    resolved_services.save_plan(plan)
 
     _print_reflect_result(
         issue_count=issue_count,
@@ -262,7 +268,11 @@ def _cmd_stage_reflect(args: argparse.Namespace) -> None:
     )
 
 
-def _cmd_stage_organize(args: argparse.Namespace) -> None:
+def _cmd_stage_organize(
+    args: argparse.Namespace,
+    *,
+    services: TriageServices | None = None,
+) -> None:
     """Record the ORGANIZE stage: validates cluster enrichment.
 
     Instead of gating on a text report, validates that the plan data
@@ -273,7 +283,8 @@ def _cmd_stage_organize(args: argparse.Namespace) -> None:
     report: str | None = getattr(args, "report", None)
     attestation: str | None = getattr(args, "attestation", None)
 
-    plan = load_plan()
+    resolved_services = services or default_triage_services()
+    plan = resolved_services.load_plan()
 
     if not _has_triage_in_queue(plan):
         print(colorize("  No planning stages in the queue — nothing to organize.", "yellow"))
@@ -323,15 +334,15 @@ def _cmd_stage_organize(args: argparse.Namespace) -> None:
         is_reuse=is_reuse,
     )
 
-    save_plan(plan)
+    resolved_services.save_plan(plan)
 
-    append_log_entry(
+    resolved_services.append_log_entry(
         plan,
         "triage_organize",
         actor="user",
         detail={"cluster_count": len(manual_clusters), "reuse": is_reuse},
     )
-    save_plan(plan)
+    resolved_services.save_plan(plan)
 
     _print_organize_result(
         manual_clusters=manual_clusters,
@@ -343,7 +354,37 @@ def _cmd_stage_organize(args: argparse.Namespace) -> None:
     )
 
 
+def cmd_stage_observe(
+    args: argparse.Namespace,
+    *,
+    services: TriageServices | None = None,
+) -> None:
+    """Public entrypoint for observe stage recording."""
+    _cmd_stage_observe(args, services=services)
+
+
+def cmd_stage_reflect(
+    args: argparse.Namespace,
+    *,
+    services: TriageServices | None = None,
+) -> None:
+    """Public entrypoint for reflect stage recording."""
+    _cmd_stage_reflect(args, services=services)
+
+
+def cmd_stage_organize(
+    args: argparse.Namespace,
+    *,
+    services: TriageServices | None = None,
+) -> None:
+    """Public entrypoint for organize stage recording."""
+    _cmd_stage_organize(args, services=services)
+
+
 __all__ = [
+    "cmd_stage_observe",
+    "cmd_stage_organize",
+    "cmd_stage_reflect",
     "_cmd_stage_observe",
     "_cmd_stage_organize",
     "_cmd_stage_reflect",

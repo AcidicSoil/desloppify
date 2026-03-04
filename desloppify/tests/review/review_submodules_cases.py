@@ -81,17 +81,17 @@ def _as_review_payload(data):
     return data if isinstance(data, dict) else {"issues": data}
 
 
-def select_files_for_review(lang, path, state, **kwargs):
+def _call_select_files_for_review(lang, path, state, **kwargs):
     return _select_files_for_review_impl(
         lang, path, state, options=ReviewSelectionOptions(**kwargs)
     )
 
 
-def prepare_review(path, lang, state, **kwargs):
+def _call_prepare_review(path, lang, state, **kwargs):
     return _prepare_review_impl(path, lang, state, options=ReviewPrepareOptions(**kwargs))
 
 
-def prepare_holistic_review(path, lang, state, **kwargs):
+def _call_prepare_holistic_review(path, lang, state, **kwargs):
     return _prepare_holistic_review_impl(
         path,
         lang,
@@ -203,7 +203,7 @@ class TestComputeReviewPriority:
 
 class TestSelectFilesForReview:
     def test_empty_files(self, mock_lang, empty_state):
-        result = select_files_for_review(mock_lang, Path("."), empty_state, files=[])
+        result = _call_select_files_for_review(mock_lang, Path("."), empty_state, files=[])
         assert result == []
 
     def test_skips_cached_fresh(self, mock_lang, empty_state):
@@ -224,7 +224,7 @@ class TestSelectFilesForReview:
                 "desloppify.intelligence.review.selection._compute_review_priority", return_value=10
             ),
         ):
-            result = select_files_for_review(
+            result = _call_select_files_for_review(
                 mock_lang,
                 Path("."),
                 empty_state,
@@ -316,7 +316,7 @@ class TestPrepareReview:
             patch("desloppify.intelligence.review.prepare.count_stale", return_value=0),
         ):
             mock_ctx.return_value = MagicMock()
-            result = prepare_review(Path("."), mock_lang, empty_state, files=[])
+            result = _call_prepare_review(Path("."), mock_lang, empty_state, files=[])
         assert "command" in result
         assert result["command"] == "review"
         assert "dimensions" in result
@@ -336,7 +336,7 @@ class TestPrepareHolisticReview:
             ) as mock_build_batches,
         ):
             mock_review_ctx.return_value = MagicMock()
-            result = prepare_holistic_review(
+            result = _call_prepare_holistic_review(
                 Path("."), mock_lang, empty_state, files=[]
             )
         assert result["command"] == "review"

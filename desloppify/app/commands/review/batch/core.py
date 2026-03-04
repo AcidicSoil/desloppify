@@ -19,6 +19,9 @@ from desloppify.intelligence.review.importing.contracts import (
     ReviewIssuePayload,
     validate_review_issue_payload,
 )
+from desloppify.intelligence.review.importing.payload import (
+    normalize_legacy_findings_alias,
+)
 from desloppify.intelligence.review.issue_merge import (
     merge_list_fields,
     normalize_word_set,
@@ -394,11 +397,12 @@ def normalize_batch_result(
     """Validate and normalize one batch payload."""
     if "assessments" not in payload:
         raise ValueError("payload missing required key: assessments")
-    # Accept both "issues" (canonical) and "findings" (legacy)
-    if "findings" in payload and "issues" not in payload:
-        payload["issues"] = payload.pop("findings")
-    if "issues" not in payload:
-        raise ValueError("payload missing required key: issues")
+    key_error = normalize_legacy_findings_alias(
+        payload,
+        missing_issues_error="payload missing required key: issues",
+    )
+    if key_error is not None:
+        raise ValueError(key_error)
 
     raw_assessments = payload.get("assessments")
     if not isinstance(raw_assessments, dict):

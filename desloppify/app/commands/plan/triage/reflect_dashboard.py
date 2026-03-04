@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from desloppify.base.output.terminal import colorize
-from desloppify.engine.planning.triage import detect_recurring_patterns
+from desloppify.engine._plan.epic_triage import detect_recurring_patterns
 
 
 def _print_reflect_dashboard(si: object, plan: dict) -> None:

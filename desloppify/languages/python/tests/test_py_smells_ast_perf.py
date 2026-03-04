@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import time
 
-from desloppify.languages.python.detectors.smells_ast import detect_ast_smells
+from desloppify.languages.python.detectors.smells_ast._dispatch import (
+    _detect_ast_smells as detect_ast_smells,
+)
 
 
 def _synth_module(functions: int = 220) -> str:

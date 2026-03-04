@@ -4,10 +4,8 @@ from __future__ import annotations
 
 import argparse
 
-from desloppify.app.commands.helpers.runtime import command_runtime
 from desloppify.base.output.terminal import colorize
 from desloppify.base.output.user_message import print_user_message
-from desloppify.engine.plan import append_log_entry, collect_triage_input, load_plan
 
 from .helpers import (
     _apply_completion,
@@ -16,6 +14,7 @@ from .helpers import (
     _open_review_ids_from_state,
     _triage_coverage,
 )
+from .services import TriageServices, default_triage_services
 from ._stage_records import _record_confirm_existing_completion
 from ._stage_rendering import _print_complete_summary
 from ._stage_validation import (
@@ -34,11 +33,16 @@ from ._stage_validation import (
 )
 
 
-def _cmd_triage_complete(args: argparse.Namespace) -> None:
+def _cmd_triage_complete(
+    args: argparse.Namespace,
+    *,
+    services: TriageServices | None = None,
+) -> None:
     """Complete triage — requires organize stage (or confirm-existing path)."""
+    resolved_services = services or default_triage_services()
     strategy: str | None = getattr(args, "strategy", None)
     attestation: str | None = getattr(args, "attestation", None)
-    plan = load_plan()
+    plan = resolved_services.load_plan()
 
     if not _has_triage_in_queue(plan):
         print(colorize("  No planning stages in the queue — nothing to complete.", "yellow"))
@@ -47,7 +51,7 @@ def _cmd_triage_complete(args: argparse.Namespace) -> None:
     meta = plan.get("epic_triage_meta", {})
     stages = meta.get("triage_stages", {})
 
-    state = command_runtime(args).state
+    state = resolved_services.command_runtime(args).state
     review_ids = _open_review_ids_from_state(state)
 
     # Require organize stage confirmed
@@ -109,7 +113,7 @@ def _cmd_triage_complete(args: argparse.Namespace) -> None:
     )
     print(colorize("  Pass --report to update, or omit to keep existing analysis.", "dim"))
 
-    append_log_entry(
+    resolved_services.append_log_entry(
         plan,
         "triage_complete",
         actor="user",
@@ -119,23 +123,26 @@ def _cmd_triage_complete(args: argparse.Namespace) -> None:
         },
     )
 
-    _apply_completion(args, plan, strategy)
+    _apply_completion(args, plan, strategy, services=resolved_services)
 
     print_user_message(
-        "Hey — final check. Does the sequencing hold up? Is every task"
-        " clear enough to hand off to someone with zero context? You"
-        " can still use desloppify tools to adjust. Once you're"
-        " satisfied, run `desloppify next` and start executing —"
+        "Hey — triage is done. Run `desloppify next` and start"
+        " executing the plan. Don't stop until you're done —"
         " unless I've told you otherwise, just go."
     )
 
 
-def _cmd_confirm_existing(args: argparse.Namespace) -> None:
+def _cmd_confirm_existing(
+    args: argparse.Namespace,
+    *,
+    services: TriageServices | None = None,
+) -> None:
     """Fast-track: confirm existing plan structure is still valid."""
+    resolved_services = services or default_triage_services()
     note: str | None = getattr(args, "note", None)
     strategy: str | None = getattr(args, "strategy", None)
     confirmed: str | None = getattr(args, "confirmed", None)
-    plan = load_plan()
+    plan = resolved_services.load_plan()
 
     if not _has_triage_in_queue(plan):
         print(colorize("  No planning stages in the queue — nothing to confirm.", "yellow"))
@@ -149,9 +156,9 @@ def _cmd_confirm_existing(args: argparse.Namespace) -> None:
         return
 
     # Determine if this is a light-path (additions only) or full ceremony
-    runtime = command_runtime(args)
+    runtime = resolved_services.command_runtime(args)
     state = runtime.state
-    si = collect_triage_input(plan, state)
+    si = resolved_services.collect_triage_input(plan, state)
     has_only_additions = bool(si.new_since_last) and not si.resolved_since_last
 
     if not _confirm_existing_stages_valid(
@@ -207,18 +214,38 @@ def _cmd_confirm_existing(args: argparse.Namespace) -> None:
         confirmed_text=confirmed_text,
     )
 
-    append_log_entry(
+    resolved_services.append_log_entry(
         plan,
         "triage_confirm_existing",
         actor="user",
         detail={"confirmed_text": confirmed_text},
     )
 
-    _apply_completion(args, plan, strategy)
+    _apply_completion(args, plan, strategy, services=resolved_services)
     print(colorize("  Confirmed existing plan — triage complete.", "green"))
 
 
+def cmd_triage_complete(
+    args: argparse.Namespace,
+    *,
+    services: TriageServices | None = None,
+) -> None:
+    """Public entrypoint for triage completion."""
+    _cmd_triage_complete(args, services=services)
+
+
+def cmd_confirm_existing(
+    args: argparse.Namespace,
+    *,
+    services: TriageServices | None = None,
+) -> None:
+    """Public entrypoint for confirm-existing completion path."""
+    _cmd_confirm_existing(args, services=services)
+
+
 __all__ = [
+    "cmd_confirm_existing",
+    "cmd_triage_complete",
     "_cmd_confirm_existing",
     "_cmd_triage_complete",
 ]

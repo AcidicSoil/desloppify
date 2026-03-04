@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import desloppify.app.commands.helpers.display as display_mod
 import desloppify.app.commands.next.render_support as next_render_support_mod
-import desloppify.app.commands.resolve.persist as resolve_persist_mod
+import desloppify.app.commands.helpers.persist as helpers_persist_mod
 import desloppify.app.commands.resolve.queue_guard as resolve_queue_guard_mod
 import desloppify.app.commands.resolve.render_support as resolve_render_support_mod
-import desloppify.app.commands.resolve.suppress as resolve_suppress_cmd_mod
+import desloppify.app.commands.suppress as suppress_cmd_mod
 import desloppify.app.commands.review.importing.output as review_import_output_mod
 import desloppify.app.commands.review.importing.parse as review_import_parse_mod
 import desloppify.app.commands.review.importing.policy as review_import_policy_mod
@@ -58,8 +58,8 @@ def test_direct_coverage_priority_modules_smoke():
     assert callable(scan_agent_context_mod.print_llm_summary)
     assert callable(scan_integrity_report_mod.show_score_integrity)
     assert callable(next_render_support_mod.render_queue_header)
-    assert callable(resolve_suppress_cmd_mod.cmd_suppress_pattern)
-    assert callable(resolve_persist_mod._save_state_or_exit)
+    assert callable(suppress_cmd_mod.cmd_suppress)
+    assert callable(helpers_persist_mod._save_state_or_exit)
     assert callable(resolve_queue_guard_mod._check_queue_order_guard)
     assert callable(resolve_render_support_mod.print_post_resolve_guidance)
     assert callable(show_concerns_view_mod._show_concerns)
@@ -113,3 +113,11 @@ def test_direct_coverage_priority_modules_behavior():
     assert rewritten is not None
     assert "B" in rewritten
     assert removed == {"A"}
+
+
+def test_review_import_parse_normalizes_legacy_findings_alias():
+    payload, errors = review_import_parse_mod._normalize_import_root_payload(
+        {"findings": []}
+    )
+    assert errors == []
+    assert payload == {"issues": []}
