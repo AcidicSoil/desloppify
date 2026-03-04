@@ -332,4 +332,4 @@ def reconcile_plan_post_scan(runtime: Any) -> None:
         if dirty:
             save_plan(plan, plan_path)
     except PLAN_LOAD_EXCEPTIONS as exc:
-        logging.debug("Plan operation skipped: %s", exc)
+        logger.warning("Plan reconciliation skipped: %s", exc)

@@ -274,7 +274,7 @@ def _render_scoring_frame() -> str:
         "Cite specific observations that explain your judgment.\n\n"
         "WHAT WE GIVE YOU AND WHY: Below you will find automated scan evidence, historical "
         "issues, and mechanical concern signals. These are navigation aids — starting points "
-        "for where to look. They are NOT evidence, NOT findings, and NOT inputs to your "
+        "for where to look. They are NOT evidence, NOT confirmed issues, and NOT inputs to your "
         "scores. Only what you observe directly in the code informs your judgment.\n\n"
     )
 
