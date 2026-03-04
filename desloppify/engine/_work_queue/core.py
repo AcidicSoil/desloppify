@@ -5,10 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TypedDict
 
-from desloppify.engine._plan.subjective_policy import (
-    SubjectiveVisibility,
-    compute_subjective_visibility,
-)
+from desloppify.engine._plan.subjective_policy import NON_OBJECTIVE_DETECTORS
 from desloppify.engine._work_queue.context import QueueContext
 from desloppify.engine._work_queue.helpers import (
     ALL_STATUSES,
@@ -71,14 +68,13 @@ class QueueBuildOptions:
     # Subjective gating
     include_subjective: bool = True
     subjective_threshold: float = 100.0
-    policy: SubjectiveVisibility | None = None
 
     # Plan integration
     plan: dict | None = None
     include_skipped: bool = False
     cluster: str | None = None
 
-    # Pre-computed context (overrides plan/policy)
+    # Pre-computed context (overrides plan)
     context: QueueContext | None = None
 
 
@@ -99,10 +95,12 @@ def build_work_queue(
     """Build a ranked work queue from state issues.
 
     Pipeline:
-    1. Gather — issue items, subjective dimensions, workflow stages
-    2. Score  — estimate impact from dimension headroom, apply floor
-    3. Order  — stamp plan positions, sort, filter to cluster focus
-    4. Limit  — truncate to count, optionally add explain metadata
+    1. Gather    — issue items, subjective dimensions, workflow stages
+    2. Score     — estimate impact from dimension headroom, apply floor
+    3. Presort   — stamp plan positions, separate skipped items
+    4. Lifecycle — filter endgame-only items when objective work remains
+    5. Sort      — rank by impact/confidence, apply plan order
+    6. Limit     — truncate to count, optionally add explain metadata
     """
     opts = options or QueueBuildOptions()
     plan, scan_path, status, threshold = _resolve_inputs(opts, state)
@@ -112,19 +110,24 @@ def build_work_queue(
         state, scan_path=scan_path, status_filter=status,
         scope=opts.scope, chronic=opts.chronic,
     )
-    items += _gather_subjective_items(state, opts, plan, threshold)
+    items += _gather_subjective_items(state, opts, threshold)
     items += _gather_workflow_items(state, plan, status)
 
     # 2. Score & filter
     enrich_with_impact(items, state.get("dimension_scores", {}))
     items = [i for i in items if _passes_impact_floor(i)]
 
-    # 3. Plan-aware ordering
+    # 3. Plan-aware ordering (part 1: separate skipped items)
     new_ids, skipped = _plan_presort(items, state, plan)
+
+    # 4. Lifecycle filter — endgame-only items filtered when objective work remains
+    items = _apply_lifecycle_filter(items)
+
+    # 5. Sort & plan post-processing
     items.sort(key=item_sort_key)
     _plan_postsort(items, skipped, plan, opts)
 
-    # 4. Finalize
+    # 6. Finalize
     if not items:
         items += _empty_queue_fallback(plan)
     total = len(items)
@@ -176,10 +179,13 @@ def _resolve_inputs(
 def _gather_subjective_items(
     state: StateModel,
     opts: QueueBuildOptions,
-    plan: dict | None,
     threshold: float,
 ) -> list[WorkQueueItem]:
-    """Build synthetic subjective items, gated by SubjectiveVisibility policy."""
+    """Build subjective dimension candidates.
+
+    Lifecycle filtering (endgame gating) happens in _apply_lifecycle_filter,
+    not here. This function only handles configuration and scope.
+    """
     if not opts.include_subjective:
         return []
     if opts.status not in {"open", "all"}:
@@ -187,45 +193,10 @@ def _gather_subjective_items(
     if opts.chronic:
         return []
 
-    ctx = opts.context
-    policy = (
-        (ctx.policy if ctx is not None else None)
-        or opts.policy
-        or compute_subjective_visibility(state, plan=plan)
-    )
-
     candidates = build_subjective_items(
         state, state.get("issues", {}), threshold=threshold,
     )
-
-    # When a plan explicitly includes a subjective item in queue_order,
-    # surface it regardless of policy — the plan is authoritative.
-    plan_queue_set: set[str] = (
-        set(plan.get("queue_order", []))
-        if plan
-        else set()
-    )
-
-    # Subjective items only surface when the objective queue is drained.
-    # Review issues for each dimension are already separate queue items —
-    # the subjective meta-item adds no value while there's mechanical work.
-    issues = state.get("issues", {})
-    open_objective_count = sum(
-        1 for iss in issues.values()
-        if iss.get("status") == "open" and iss.get("detector") != "review"
-    )
-    if open_objective_count > 0:
-        return []
-
-    result: list[WorkQueueItem] = []
-    for item in candidates:
-        if not scope_matches(item, opts.scope):
-            continue
-        item_id = item.get("id", "")
-        if not policy.should_surface(item) and item_id not in plan_queue_set:
-            continue
-        result.append(item)
-    return result
+    return [item for item in candidates if scope_matches(item, opts.scope)]
 
 
 def _gather_workflow_items(
@@ -297,6 +268,35 @@ def _plan_postsort(
     stamp_positions(items, plan)
     focused = filter_cluster_focus(items, plan, opts.cluster)
     items[:] = focused
+
+
+def _has_objective_items(items: list[WorkQueueItem]) -> bool:
+    """True if any objective mechanical work items remain in the queue."""
+    return any(
+        i.get("kind") == "issue"
+        and i.get("detector", "") not in NON_OBJECTIVE_DETECTORS
+        for i in items
+    )
+
+
+def _is_endgame_only(item: WorkQueueItem) -> bool:
+    """True if this item should only appear when the objective queue is drained."""
+    return (
+        item.get("kind") == "subjective_dimension"
+        and not item.get("initial_review")
+    )
+
+
+def _apply_lifecycle_filter(items: list[WorkQueueItem]) -> list[WorkQueueItem]:
+    """Enforce lifecycle visibility rules.
+
+    Endgame-only items (subjective reassessment) are filtered out when
+    objective mechanical work remains. Initial review items always survive
+    — they're onboarding priority, not endgame work.
+    """
+    if not _has_objective_items(items):
+        return items  # endgame: everything visible
+    return [i for i in items if not _is_endgame_only(i)]
 
 
 def _empty_queue_fallback(plan: dict | None) -> list[WorkQueueItem]:

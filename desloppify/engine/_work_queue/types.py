@@ -77,7 +77,6 @@ class WorkQueueItem(TypedDict, total=False):
 
     # Subjective-workflow metadata
     initial_review: bool
-    stale_review: bool
     cli_keys: list[str]
     dimension: str
     dimension_name: str

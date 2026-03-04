@@ -312,7 +312,6 @@ def build_subjective_items(
                 "kind": "subjective_dimension",
                 "primary_command": primary_command,
                 "initial_review": is_unassessed,
-                "stale_review": is_stale and not is_unassessed,
             }
         )
     return items

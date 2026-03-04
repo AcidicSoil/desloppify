@@ -164,45 +164,6 @@ def test_under_target_ids_populated():
 
 
 # ---------------------------------------------------------------------------
-# should_surface
-# ---------------------------------------------------------------------------
-
-def test_should_surface_initial_review_always():
-    policy = SubjectiveVisibility(
-        has_objective_backlog=True,
-        objective_count=5,
-        unscored_ids=frozenset(),
-        stale_ids=frozenset(),
-        under_target_ids=frozenset(),
-    )
-    assert policy.should_surface({"initial_review": True}) is True
-
-
-def test_should_surface_non_initial_blocked_by_backlog():
-    policy = SubjectiveVisibility(
-        has_objective_backlog=True,
-        objective_count=5,
-        unscored_ids=frozenset(),
-        stale_ids=frozenset(),
-        under_target_ids=frozenset(),
-    )
-    assert policy.should_surface({"initial_review": False}) is False
-    assert policy.should_surface({}) is False
-
-
-def test_should_surface_non_initial_ok_when_drained():
-    policy = SubjectiveVisibility(
-        has_objective_backlog=False,
-        objective_count=0,
-        unscored_ids=frozenset(),
-        stale_ids=frozenset(),
-        under_target_ids=frozenset(),
-    )
-    assert policy.should_surface({"initial_review": False}) is True
-    assert policy.should_surface({}) is True
-
-
-# ---------------------------------------------------------------------------
 # should_inject_to_plan / should_evict_from_plan
 # ---------------------------------------------------------------------------
 

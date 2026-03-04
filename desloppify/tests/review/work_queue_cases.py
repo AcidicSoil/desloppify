@@ -597,8 +597,12 @@ def test_stale_subjective_appear_when_no_objective_backlog():
     assert "subjective::naming_quality" in ids
 
 
-def test_unassessed_subjective_wait_for_objective_drain():
-    """Unassessed subjective items wait until objective queue is drained."""
+def test_unassessed_subjective_visible_with_objective_backlog():
+    """Unassessed (initial_review) subjective items appear even with objective backlog.
+
+    Initial reviews are onboarding priority — they let users assess dimensions
+    from the start, not just at endgame.
+    """
     objective_issues = [
         _issue(f"smells::src/{c}.py::x", detector="smells", tier=3)
         for c in "abcd"
@@ -630,9 +634,10 @@ def test_unassessed_subjective_wait_for_objective_drain():
     ids = [item["id"] for item in queue["items"]]
     subj_ids = [i for i in ids if i.startswith("subjective::")]
 
-    # Subjective items wait until all objective issues are resolved
-    assert len(subj_ids) == 0
-    assert len(ids) == 4  # 4 objective only
+    # Initial review items survive lifecycle filter — always visible
+    assert len(subj_ids) == 1
+    assert "subjective::naming_quality" in ids
+    assert len(ids) == 5  # 4 objective + 1 initial review
 
 
 # ── Impact-based ordering ──────────────────────────────────
@@ -766,10 +771,14 @@ def test_evidence_only_issue_still_in_state():
     assert len(queue["items"]) == 0
 
 
-def test_evidence_only_reduces_objective_count():
-    """Subjective items don't surface while open objective issues exist,
-    even if those issues would later be filtered as evidence-only."""
-    # All issues are low-confidence smells (has standalone_threshold)
+def test_evidence_only_items_dont_block_subjective():
+    """Evidence-only items (filtered before lifecycle) don't block subjective items.
+
+    The lifecycle filter operates on the actual queue contents after all prior
+    filters. If evidence-only items are the only objective issues and they get
+    filtered out, subjective items surface because nothing objective remains.
+    """
+    # All issues are low-confidence smells (below standalone_threshold)
     issues = [
         _issue(f"smells::src/{c}.py::x", detector="smells", confidence="low")
         for c in "abcd"
@@ -786,8 +795,9 @@ def test_evidence_only_reduces_objective_count():
         item["id"] for item in queue["items"]
         if item["kind"] == "subjective_dimension"
     ]
-    # Objective issues exist (even if evidence-only), so subjective waits
-    assert len(subj_ids) == 0
+    # Evidence-only items filtered before lifecycle → no objective items remain
+    # → subjective items surface
+    assert len(subj_ids) == 1
 
 
 def test_impact_floor_filters_negligible_impact():
@@ -875,10 +885,9 @@ def test_collapse_clusters_preserves_order():
 # -- Plan-ordered subjective items surface despite objective backlog --------
 
 
-def test_plan_ordered_stale_subjective_surfaces_with_objective_backlog():
-    """Subjective items never surface while objective issues exist,
-    even when the plan explicitly includes them in queue_order.
-    They wait until the objective queue is fully drained.
+def test_plan_ordered_stale_subjective_gated_with_objective_backlog():
+    """Stale subjective items are gated by lifecycle filter while objective
+    issues exist, even when the plan includes them in queue_order.
     """
     from desloppify.engine._plan.schema import empty_plan
 
@@ -929,8 +938,70 @@ def test_plan_ordered_stale_subjective_surfaces_with_objective_backlog():
     subj_with_plan = [
         i["id"] for i in queue_with_plan["items"] if i["id"].startswith("subjective::")
     ]
-    # Subjective items always wait for objective drain, even with plan override
+    # Stale subjective items gated by lifecycle filter even with plan ordering
     assert len(subj_with_plan) == 0
+
+
+# ── Lifecycle filter runs after plan_presort ───────────
+
+
+def test_skipped_objective_items_dont_block_subjective():
+    """Plan-skipped objective items are removed before lifecycle filter,
+    so they don't block subjective reassessment items.
+    """
+    from desloppify.engine._plan.schema import empty_plan
+
+    objective_issues = [
+        _issue(f"smells::src/{c}.py::x", detector="smells", tier=3)
+        for c in "abcd"
+    ]
+    state = _state(
+        objective_issues,
+        dimension_scores={
+            "Naming quality": {
+                "score": 70.0,
+                "strict": 70.0,
+                "failing": 1,
+                "detectors": {
+                    "subjective_assessment": {"dimension_key": "naming_quality"},
+                },
+            },
+        },
+    )
+    state["subjective_assessments"] = {
+        "naming_quality": {
+            "score": 70.0,
+            "needs_review_refresh": True,
+            "stale_since": "2026-01-01T00:00:00+00:00",
+        }
+    }
+
+    # Skip ALL objective issues in the plan
+    plan = empty_plan()
+    plan["queue_order"] = [
+        "subjective::naming_quality",
+        "smells::src/a.py::x",
+        "smells::src/b.py::x",
+        "smells::src/c.py::x",
+        "smells::src/d.py::x",
+    ]
+    plan["skipped"] = {
+        "smells::src/a.py::x": {"reason": "deferred"},
+        "smells::src/b.py::x": {"reason": "deferred"},
+        "smells::src/c.py::x": {"reason": "deferred"},
+        "smells::src/d.py::x": {"reason": "deferred"},
+    }
+
+    queue = build_work_queue(
+        state, count=None, include_subjective=True, plan=plan,
+    )
+    subj_ids = [
+        i["id"] for i in queue["items"] if i["id"].startswith("subjective::")
+    ]
+    # All objective items skipped → lifecycle filter sees no objective work
+    # → stale subjective item surfaces
+    assert len(subj_ids) == 1
+    assert "subjective::naming_quality" in subj_ids
 
 
 # ── Wontfix / resolved issues excluded (#193) ──────────

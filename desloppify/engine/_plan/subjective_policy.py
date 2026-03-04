@@ -2,7 +2,7 @@
 
 A single frozen dataclass computed once per operation replaces the scattered
 ``has_objective_items`` / ``objective_count`` computations in
-``stale_dimensions``, ``auto_cluster``, and ``_work_queue/core``.
+``stale_dimensions`` and ``auto_cluster``.
 """
 
 from __future__ import annotations
@@ -30,15 +30,6 @@ class SubjectiveVisibility:
     unscored_ids: frozenset[str]  # subjective::* IDs needing initial review
     stale_ids: frozenset[str]  # subjective::* IDs needing re-review
     under_target_ids: frozenset[str]  # below target, not stale/unscored
-
-    def should_surface(self, item: dict) -> bool:
-        """Should this subjective queue item appear in the work queue?
-
-        Unscored (initial_review) -> always.  All others -> only when drained.
-        """
-        if item.get("initial_review"):
-            return True
-        return not self.has_objective_backlog
 
     def should_inject_to_plan(self, fid: str) -> bool:
         """Should this subjective ID be injected into plan queue_order?"""

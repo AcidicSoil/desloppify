@@ -193,8 +193,13 @@ class TestQueueContextIntegration:
         ids = {item["id"] for item in items}
         assert "f1" in ids
 
-    def test_build_work_queue_uses_context_policy(self):
-        """build_work_queue uses context.policy, not recomputing."""
+    def test_build_work_queue_lifecycle_filter_uses_pipeline_items(self):
+        """Lifecycle filter operates on pipeline items, not raw state.
+
+        The queue no longer computes SubjectiveVisibility policy during
+        build — lifecycle gating is done by _apply_lifecycle_filter on
+        the items that survived prior pipeline stages.
+        """
         from desloppify.engine._work_queue.core import (
             QueueBuildOptions,
             build_work_queue,
@@ -203,13 +208,9 @@ class TestQueueContextIntegration:
         state = _minimal_state()
         ctx = queue_context(state, plan=None)
 
-        with patch(
-            "desloppify.engine._work_queue.core.compute_subjective_visibility",
-        ) as mock_csv:
-            build_work_queue(
-                state,
-                options=QueueBuildOptions(context=ctx),
-            )
-            # compute_subjective_visibility should NOT be called since
-            # ctx.policy is used instead
-            mock_csv.assert_not_called()
+        # Should succeed without needing to compute policy
+        result = build_work_queue(
+            state,
+            options=QueueBuildOptions(context=ctx),
+        )
+        assert isinstance(result["items"], list)
