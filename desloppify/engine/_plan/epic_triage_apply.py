@@ -10,9 +10,10 @@ from desloppify.engine._plan.schema import (
     PlanModel,
     ensure_plan_defaults,
 )
-from desloppify.engine._plan.stale_dimensions import review_issue_snapshot_hash
+from desloppify.engine._plan.stale_policy import review_issue_snapshot_hash
 from desloppify.engine._state.schema import StateModel, utc_now
 
+from .epic_triage_dismiss import dismiss_triage_issues
 from .epic_triage_prompt import TriageResult
 
 
@@ -120,69 +121,6 @@ def _upsert_triage_clusters(
     return created, updated
 
 
-def _triaged_out_payload(
-    *,
-    issue_id: str,
-    reason: str,
-    note: str | None,
-    now: str,
-    scan_count: int,
-) -> dict:
-    return {
-        "issue_id": issue_id,
-        "kind": "triaged_out",
-        "reason": reason,
-        "note": note,
-        "attestation": None,
-        "created_at": now,
-        "review_after": None,
-        "skipped_at_scan": scan_count,
-    }
-
-
-def _dismiss_triage_issues(
-    *,
-    triage: TriageResult,
-    order: list[str],
-    skipped: dict,
-    now: str,
-    version: int,
-    scan_count: int,
-) -> tuple[list[str], int]:
-    dismissed_ids: list[str] = []
-    dismiss_count = 0
-    for dismissed in triage.dismissed_issues:
-        fid = dismissed.issue_id
-        dismissed_ids.append(fid)
-        if fid in order:
-            order.remove(fid)
-        skipped[fid] = _triaged_out_payload(
-            issue_id=fid,
-            reason=dismissed.reason,
-            note=f"Dismissed by epic triage v{version}",
-            now=now,
-            scan_count=scan_count,
-        )
-        dismiss_count += 1
-
-    for epic_data in triage.epics:
-        for fid in epic_data.get("dismissed", []):
-            if fid in dismissed_ids or fid not in order:
-                continue
-            order.remove(fid)
-            dismissed_ids.append(fid)
-            skipped[fid] = _triaged_out_payload(
-                issue_id=fid,
-                reason=f"Dismissed by epic triage v{version}",
-                note=None,
-                now=now,
-                scan_count=scan_count,
-            )
-            dismiss_count += 1
-
-    return dismissed_ids, dismiss_count
-
-
 def _reorder_queue_by_dependency(
     *,
     order: list[str],
@@ -269,7 +207,7 @@ def apply_triage_to_plan(
     result.epics_created += created
     result.epics_updated += updated
 
-    dismissed_ids, dismiss_count = _dismiss_triage_issues(
+    dismissed_ids, dismiss_count = dismiss_triage_issues(
         triage=triage,
         order=order,
         skipped=skipped,
