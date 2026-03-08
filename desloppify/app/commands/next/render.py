@@ -16,54 +16,27 @@ from .render_support import is_auto_fix_command
 from .render_support import render_cluster_item as _render_cluster_item
 from .render_support import render_compact_item as _render_compact_item
 from .render_support import render_grouped as _render_grouped
+from .render_scoring import render_item_explain as _render_item_explain_impl
+from .render_scoring import render_score_impact as _render_score_impact_impl
+from .render_workflow import render_workflow_action as _render_workflow_action_impl
+from .render_workflow import render_workflow_stage as _render_workflow_stage_impl
+from .render_workflow import step_text as _step_text_impl
 
 
 def _step_text(step: str | dict) -> str:
-    """Extract display text from an action step (string or dict with title)."""
-    if isinstance(step, dict):
-        return step.get("title", str(step))
-    return str(step)
-
-
-def _normalized_dimension_key(value: str | None) -> str:
-    return str(value or "").lower().replace(" ", "_")
+    return _step_text_impl(step)
 
 
 def _render_workflow_stage(item: dict) -> None:
-    """Render a triage workflow stage item."""
-    blocked = item.get("is_blocked", False)
-    detail = item.get("detail", {})
-    stage = workflow_stage_name(item)
-    tag = " [blocked]" if blocked else ""
-    style = "dim" if blocked else "bold"
-    print(colorize(f"  (Planning stage: {stage}{tag})", style))
-    print(colorize("  " + "─" * 60, "dim"))
-    print(f"  {colorize(item.get('summary', ''), 'yellow')}")
-    total = detail.get("total_review_issues", 0)
-    if total:
-        print(colorize(f"  {total} review issues to analyze", "dim"))
-    if blocked:
-        blocked_by = item.get("blocked_by", [])
-        deps = ", ".join(b.replace("triage::", "") for b in blocked_by)
-        print(colorize(f"  Blocked by: {deps}", "dim"))
-        first_dep = blocked_by[0] if blocked_by else ""
-        dep_name = first_dep.replace("triage::", "")
-        if dep_name:
-            print(colorize(f"  Next step: desloppify plan triage --stage {dep_name}", "dim"))
-    else:
-        print(colorize(f"\n  Action: {item.get('primary_command', '')}", "cyan"))
+    _render_workflow_stage_impl(
+        item,
+        colorize_fn=colorize,
+        workflow_stage_name_fn=workflow_stage_name,
+    )
 
 
 def _render_workflow_action(item: dict) -> None:
-    """Render a workflow action item (e.g. create-plan).
-
-    Side-effect only: prints a formatted card to stdout for terminal display.
-    Called from _render_item when item kind is 'workflow_action'.
-    """
-    print(colorize("  (Workflow step)", "bold"))
-    print(colorize("  " + "─" * 60, "dim"))
-    print(f"  {colorize(item.get('summary', ''), 'yellow')}")
-    print(colorize(f"\n  Action: {item.get('primary_command', '')}", "cyan"))
+    _render_workflow_action_impl(item, colorize_fn=colorize)
 
 
 def _render_subjective_dimension(item: dict, *, explain: bool) -> None:
@@ -155,83 +128,19 @@ def _render_issue_detail(
     return detail
 
 
-def _render_dimension_context(detector: str, dim_scores: dict) -> None:
-    if not dim_scores:
-        return
-    dimension = get_dimension_for_detector(detector)
-    if not dimension or dimension.name not in dim_scores:
-        return
-    dimension_score = dim_scores[dimension.name]
-    strict_val = dimension_score.get("strict", dimension_score["score"])
-    print(
-        colorize(
-            f"\n  Dimension: {dimension.name} — {dimension_score['score']:.1f}% "
-            f"(strict: {strict_val:.1f}%) "
-            f"({dimension_score.get('failing', 0)} of {dimension_score['checks']:,} checks failing)",
-            "dim",
-        )
-    )
-
-
-def _render_detector_impact_estimate(
-    detector: str, dim_scores: dict, potentials: dict,
-) -> None:
-    try:
-        impact = compute_score_impact(dim_scores, potentials, detector, issues_to_fix=1)
-        if impact > 0:
-            print(colorize(f"  Impact: fixing this is worth ~+{impact:.1f} pts on overall score", "cyan"))
-            return
-
-        dimension = get_dimension_for_detector(detector)
-        if not dimension or dimension.name not in dim_scores:
-            return
-        issues = dim_scores[dimension.name].get("failing", 0)
-        if issues <= 1:
-            return
-        bulk = compute_score_impact(dim_scores, potentials, detector, issues_to_fix=issues)
-        if bulk > 0:
-            print(colorize(
-                f"  Impact: fixing all {issues} {detector} issues → ~+{bulk:.1f} pts",
-                "cyan",
-            ))
-    except (ImportError, TypeError, ValueError, KeyError) as exc:
-        log(f"  score impact estimate skipped: {exc}")
-
-
-def _render_review_dimension_drag(item: dict, dim_scores: dict) -> None:
-    try:
-        dim_key = item.get("detail", {}).get("dimension", "")
-        if not dim_key:
-            return
-        breakdown = compute_health_breakdown(dim_scores)
-        target_key = _normalized_dimension_key(dim_key)
-        for entry in breakdown.get("entries", []):
-            if not isinstance(entry, dict):
-                continue
-            if _normalized_dimension_key(entry.get("name", "")) != target_key:
-                continue
-            drag = float(entry.get("overall_drag", 0) or 0)
-            if drag > 0.01:
-                print(colorize(
-                    f"  Dimension drag: {entry['name']} costs -{drag:.2f} pts on overall score",
-                    "cyan",
-                ))
-            return
-    except (ImportError, TypeError, ValueError, KeyError) as exc:
-        log(f"  dimension drag estimate skipped: {exc}")
-
-
 def _render_score_impact(
     item: dict, dim_scores: dict, potentials: dict | None,
 ) -> None:
-    """Render dimension score context and impact estimates."""
-    detector = item.get("detector", "")
-    _render_dimension_context(detector, dim_scores)
-    if potentials and detector and dim_scores:
-        _render_detector_impact_estimate(detector, dim_scores, potentials)
-        return
-    if detector == "review" and dim_scores:
-        _render_review_dimension_drag(item, dim_scores)
+    _render_score_impact_impl(
+        item,
+        dim_scores,
+        potentials,
+        colorize_fn=colorize,
+        log_fn=log,
+        compute_health_breakdown_fn=compute_health_breakdown,
+        compute_score_impact_fn=compute_score_impact,
+        get_dimension_for_detector_fn=get_dimension_for_detector,
+    )
 
 
 _KIND_RENDERERS = {
@@ -274,38 +183,14 @@ def _render_auto_fix_batch_hint(item: dict, issues_scoped: dict) -> None:
 def _render_item_explain(
     item: dict, detail: dict, confidence: str, dim_scores: dict,
 ) -> None:
-    explanation = item.get("explain", {})
-    count_weight = explanation.get("count", int(detail.get("count", 0) or 0))
-    detector = item.get("detector", "")
-    base = (
-        f"ranked by confidence={confidence}, "
-        f"count={count_weight}, id={item.get('id', '')}"
+    _render_item_explain_impl(
+        item,
+        detail,
+        confidence,
+        dim_scores,
+        colorize_fn=colorize,
+        get_dimension_for_detector_fn=get_dimension_for_detector,
     )
-    if dim_scores and detector:
-        dimension = get_dimension_for_detector(detector)
-        if dimension and dimension.name in dim_scores:
-            ds = dim_scores[dimension.name]
-            base += (
-                f". Dimension: {dimension.name} at {ds['score']:.1f}% "
-                f"({ds.get('failing', 0)} open issues)"
-            )
-    if item.get("detector") == "review" and dim_scores:
-        dim_key = _normalized_dimension_key(item.get("detail", {}).get("dimension", ""))
-        if dim_key:
-            for ds_name, ds_data in dim_scores.items():
-                if _normalized_dimension_key(ds_name) != dim_key:
-                    continue
-                score_val = ds_data.get("score", "?")
-                if isinstance(score_val, int | float):
-                    score_str = f"{score_val:.1f}"
-                else:
-                    score_str = str(score_val)
-                base += f". Subjective dimension: {ds_name} at {score_str}%"
-                break
-    policy = explanation.get("policy")
-    if policy:
-        base = f"{base}. {policy}"
-    print(colorize(f"  explain: {base}", "dim"))
 
 
 def _render_item(
