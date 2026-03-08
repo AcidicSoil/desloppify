@@ -154,7 +154,6 @@ def _confirm_observe(
     stages["observe"]["confirmed_at"] = utc_now()
     stages["observe"]["confirmed_text"] = attestation.strip()
     purge_triage_stage(plan, "observe")
-    resolved_services.save_plan(plan)
     resolved_services.append_log_entry(
         plan,
         "triage_confirm_observe",
@@ -248,7 +247,6 @@ def _confirm_reflect(
     stages["reflect"]["confirmed_at"] = utc_now()
     stages["reflect"]["confirmed_text"] = attestation.strip()
     purge_triage_stage(plan, "reflect")
-    resolved_services.save_plan(plan)
     resolved_services.append_log_entry(
         plan,
         "triage_confirm_reflect",
@@ -420,7 +418,6 @@ def _confirm_organize(
     stages["organize"]["confirmed_at"] = utc_now()
     stages["organize"]["confirmed_text"] = attestation.strip()
     purge_triage_stage(plan, "organize")
-    resolved_services.save_plan(plan)
     resolved_services.append_log_entry(
         plan,
         "triage_confirm_organize",
@@ -559,7 +556,6 @@ def _confirm_enrich(
     stages["enrich"]["confirmed_at"] = utc_now()
     stages["enrich"]["confirmed_text"] = attestation.strip()
     purge_triage_stage(plan, "enrich")
-    resolved_services.save_plan(plan)
     resolved_services.append_log_entry(
         plan,
         "triage_confirm_enrich",
@@ -666,7 +662,6 @@ def _confirm_sense_check(
     stages["sense-check"]["confirmed_at"] = utc_now()
     stages["sense-check"]["confirmed_text"] = attestation.strip()
     purge_triage_stage(plan, "sense-check")
-    resolved_services.save_plan(plan)
     resolved_services.append_log_entry(
         plan,
         "triage_confirm_sense_check",

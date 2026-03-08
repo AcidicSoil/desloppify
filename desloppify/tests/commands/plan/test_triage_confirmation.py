@@ -130,6 +130,7 @@ class TestConfirmObserve:
         obs = plan["epic_triage_meta"]["triage_stages"]["observe"]
         assert obs.get("confirmed_at")
         assert obs.get("confirmed_text") == attestation
+        assert len(saved_plans) == 1
 
     def test_confirm_observe_requires_stage_recorded(self, monkeypatch, capsys):
         """Cannot confirm observe if stage not yet recorded."""
@@ -205,6 +206,28 @@ class TestConfirmReflect:
         out = capsys.readouterr().out
         assert "REFLECT" in out
         assert "strategy" in out.lower()
+
+    def test_confirm_reflect_records_single_save(self, monkeypatch, capsys):
+        """Reflect confirmation persists once after purge+log updates."""
+        plan = _plan_with_stages("observe", "reflect", confirmed=True)
+        plan["epic_triage_meta"]["triage_stages"]["reflect"].pop("confirmed_at", None)
+        plan["epic_triage_meta"]["triage_stages"]["reflect"].pop("confirmed_text", None)
+        state = _state_with_review_issues("r1", "r2")
+        saved_plans = []
+
+        monkeypatch.setattr(triage_mod, "load_plan", lambda *a, **kw: plan)
+        monkeypatch.setattr(triage_mod, "command_runtime", lambda args: _fake_runtime(state))
+        monkeypatch.setattr(triage_mod, "save_plan", lambda p, *a, **kw: saved_plans.append(True))
+        monkeypatch.setattr(triage_mod, "require_completed_scan", lambda s: True)
+
+        attestation = (
+            "I have thoroughly reviewed the abstraction fitness dimension strategy "
+            "in this plan and validated sequencing before organizing."
+        )
+        args = _fake_args(confirm="reflect", attestation=attestation)
+        triage_mod.cmd_plan_triage(args)
+
+        assert len(saved_plans) == 1
 
 
 # ---------------------------------------------------------------------------
