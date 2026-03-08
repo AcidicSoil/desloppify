@@ -24,6 +24,71 @@ _CALLBACK_LOG_NAMES = {
 }
 
 
+def _path_like_name(obj: ast.AST) -> str:
+    """Extract a variable-like name from Name/Attribute nodes."""
+    if isinstance(obj, ast.Name):
+        return obj.id
+    if isinstance(obj, ast.Attribute):
+        return obj.attr
+    return ""
+
+
+def _match_split_slash(filepath: str, node: ast.Call) -> dict | None:
+    """Match ``path_var.split('/')`` style hardcoded separator usage."""
+    if not (
+        isinstance(node.func, ast.Attribute)
+        and node.func.attr == "split"
+        and len(node.args) == 1
+        and isinstance(node.args[0], ast.Constant)
+        and node.args[0].value == "/"
+    ):
+        return None
+
+    obj = node.func.value
+    if (
+        isinstance(obj, ast.Call)
+        and isinstance(obj.func, ast.Attribute)
+        and obj.func.attr in ("relpath", "relative_to")
+    ):
+        return {
+            "file": filepath,
+            "line": node.lineno,
+            "content": f'{ast.dump(obj.func)[:40]}.split("/")',
+        }
+
+    var_name = _path_like_name(obj)
+    if var_name and _looks_like_path_var(var_name):
+        return {
+            "file": filepath,
+            "line": node.lineno,
+            "content": f'{var_name}.split("/")',
+        }
+    return None
+
+
+def _match_startswith_slash(filepath: str, node: ast.Call) -> dict | None:
+    """Match ``path_var.startswith('x/y')`` patterns with hardcoded slashes."""
+    if not (
+        isinstance(node.func, ast.Attribute)
+        and node.func.attr == "startswith"
+        and len(node.args) == 1
+        and isinstance(node.args[0], ast.Constant)
+        and isinstance(node.args[0].value, str)
+        and "/" in node.args[0].value
+        and not node.args[0].value.startswith(("@", "http", "//"))
+    ):
+        return None
+
+    var_name = _path_like_name(node.func.value)
+    if var_name and _looks_like_path_var(var_name):
+        return {
+            "file": filepath,
+            "line": node.lineno,
+            "content": f'{var_name}.startswith("{node.args[0].value}")',
+        }
+    return None
+
+
 def _detect_callback_logging(
     filepath: str,
     tree: ast.Module,
@@ -79,70 +144,11 @@ def _detect_hardcoded_path_sep(
     """
     results: list[dict] = []
     for node in _iter_nodes(tree, all_nodes, ast.Call):
-        # Pattern 1: var.split("/") where var looks like a path
-        if (
-            isinstance(node, ast.Call)
-            and isinstance(node.func, ast.Attribute)
-            and node.func.attr == "split"
-            and len(node.args) == 1
-            and isinstance(node.args[0], ast.Constant)
-            and node.args[0].value == "/"
-        ):
-            # Check what's being split
-            obj = node.func.value
-            var_name = ""
-            if isinstance(obj, ast.Name):
-                var_name = obj.id
-            elif isinstance(obj, ast.Attribute):
-                var_name = obj.attr
-            # Also catch chained: os.path.relpath(...).split("/")
-            elif isinstance(obj, ast.Call):
-                if isinstance(obj.func, ast.Attribute) and obj.func.attr in (
-                    "relpath",
-                    "relative_to",
-                ):
-                    results.append(
-                        {
-                            "file": filepath,
-                            "line": node.lineno,
-                            "content": f'{ast.dump(obj.func)[:40]}.split("/")',
-                        }
-                    )
-                    continue
+        split_match = _match_split_slash(filepath, node)
+        if split_match is not None:
+            results.append(split_match)
 
-            if var_name and _looks_like_path_var(var_name):
-                results.append(
-                    {
-                        "file": filepath,
-                        "line": node.lineno,
-                        "content": f'{var_name}.split("/")',
-                    }
-                )
-
-        # Pattern 2: path_var.startswith("something/with/slashes")
-        # Skip module specifiers (@/, http://, etc.)
-        if (
-            isinstance(node, ast.Call)
-            and isinstance(node.func, ast.Attribute)
-            and node.func.attr == "startswith"
-            and len(node.args) == 1
-            and isinstance(node.args[0], ast.Constant)
-            and isinstance(node.args[0].value, str)
-            and "/" in node.args[0].value
-            and not node.args[0].value.startswith(("@", "http", "//"))
-        ):
-            obj = node.func.value
-            var_name = ""
-            if isinstance(obj, ast.Name):
-                var_name = obj.id
-            elif isinstance(obj, ast.Attribute):
-                var_name = obj.attr
-            if var_name and _looks_like_path_var(var_name):
-                results.append(
-                    {
-                        "file": filepath,
-                        "line": node.lineno,
-                        "content": f'{var_name}.startswith("{node.args[0].value}")',
-                    }
-                )
+        startswith_match = _match_startswith_slash(filepath, node)
+        if startswith_match is not None:
+            results.append(startswith_match)
     return results
