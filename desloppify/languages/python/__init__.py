@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Any
+
 from desloppify.base.discovery.source import find_py_files
 from desloppify.engine.hook_registry import register_lang_hooks
 from desloppify.engine.policy.zones import COMMON_ZONE_RULES, Zone, ZoneRule
@@ -59,6 +61,9 @@ from desloppify.languages.python.phases import (
     phase_unused_enums,
 )
 
+if TYPE_CHECKING:
+    from desloppify.engine.policy.zones import FileZoneMap
+
 
 class PythonConfig(LangConfig):
     def _missing_bandit_coverage(self) -> DetectorCoverageStatus:
@@ -67,13 +72,21 @@ class PythonConfig(LangConfig):
     def scan_coverage_prerequisites(self) -> list[DetectorCoverageStatus]:
         return python_scan_coverage_prerequisites()
 
-    def detect_lang_security_detailed(self, files, zone_map) -> LangSecurityResult:
+    def detect_lang_security_detailed(
+        self,
+        files: list[str],
+        zone_map: FileZoneMap | None,
+    ) -> LangSecurityResult:
         return detect_python_security(files, zone_map)
 
-    def detect_private_imports(self, graph, zone_map):
+    def detect_private_imports(
+        self,
+        graph: dict[str, dict[str, Any]],
+        zone_map: FileZoneMap | None,
+    ) -> tuple[list[dict], int]:
         return detect_python_private_imports(graph, zone_map)
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             name="python",
             extensions=[".py"],
