@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib
 import importlib.util
 import logging
+import os
 from pathlib import Path
 
 from desloppify.base.discovery.paths import get_project_root
@@ -45,6 +46,23 @@ def _report_load_errors_for_load_all() -> None:
         # load_all historically logs plugin failures and continues so command
         # startup can proceed with the languages that did load successfully.
         return
+
+
+def _user_plugins_trusted() -> bool:
+    """Check whether the user has opted in to loading project-local plugins.
+
+    Returns *True* when either:
+    * the environment variable ``DESLOPPIFY_TRUST_PLUGINS`` is set to ``1``, or
+    * the project config key ``trust_plugins`` is truthy.
+    """
+    if os.environ.get("DESLOPPIFY_TRUST_PLUGINS") == "1":
+        return True
+    try:
+        from desloppify.base.config import load_config
+        config = load_config()
+        return bool(config.get("trust_plugins", False))
+    except Exception:  # noqa: BLE001 — config failures must not block discovery
+        return False
 
 
 def load_all(*, force_reload: bool = False) -> None:
@@ -93,22 +111,32 @@ def load_all(*, force_reload: bool = False) -> None:
                 failures[module_name] = ex
 
     # Discover user plugins from <active-project-root>/.desloppify/plugins/*.py
+    # These are arbitrary code from the scan target — require explicit opt-in
+    # via config key "trust_plugins": true or env DESLOPPIFY_TRUST_PLUGINS=1.
     try:
         user_plugin_dir = get_project_root() / ".desloppify" / "plugins"
         if user_plugin_dir.is_dir():
-            for f in sorted(user_plugin_dir.glob("*.py")):
-                spec = importlib.util.spec_from_file_location(
-                    f"desloppify_user_plugin_{f.stem}", f
+            if not _user_plugins_trusted():
+                logger.warning(
+                    "Skipping user plugins in %s — not trusted. "
+                    "Set trust_plugins=true in .desloppify/config.json "
+                    "or DESLOPPIFY_TRUST_PLUGINS=1 to allow.",
+                    user_plugin_dir,
                 )
-                if spec and spec.loader:
-                    try:
-                        mod = importlib.util.module_from_spec(spec)
-                        spec.loader.exec_module(mod)
-                    except _PLUGIN_IMPORT_ERRORS as ex:
-                        logger.debug(
-                            "User plugin import failed for %s: %s", f.name, ex
-                        )
-                        failures[f"user:{f.name}"] = ex
+            else:
+                for f in sorted(user_plugin_dir.glob("*.py")):
+                    spec = importlib.util.spec_from_file_location(
+                        f"desloppify_user_plugin_{f.stem}", f
+                    )
+                    if spec and spec.loader:
+                        try:
+                            mod = importlib.util.module_from_spec(spec)
+                            spec.loader.exec_module(mod)
+                        except _PLUGIN_IMPORT_ERRORS as ex:
+                            logger.debug(
+                                "User plugin import failed for %s: %s", f.name, ex
+                            )
+                            failures[f"user:{f.name}"] = ex
     except (OSError, ImportError) as exc:
         log_best_effort_failure(logger, "discover user plugins", exc)
 

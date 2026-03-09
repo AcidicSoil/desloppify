@@ -198,7 +198,7 @@ def upsert_issues(
         previous["suppressed_at"] = None
         previous["suppression_pattern"] = None
 
-        if previous["status"] in ("fixed", "auto_resolved"):
+        if previous["status"] in ("fixed", "auto_resolved", "false_positive"):
             # subjective_review issues are condition-based.  When just
             # auto-resolved by an agent import, skip reopening to avoid a
             # resolve-then-reopen loop on the same scan cycle.
