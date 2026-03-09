@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import fnmatch
+
+from desloppify.engine._work_queue.core import QueueBuildOptions, build_work_queue
 from desloppify.engine.plan import PlanModel
 from desloppify.state import StateModel, match_issues
 
@@ -24,6 +27,38 @@ def _collect_plan_ids(plan: PlanModel | None) -> set[str]:
     return plan_ids
 
 
+def _collect_queue_ids(state: StateModel, plan: PlanModel | None) -> set[str]:
+    """Return IDs currently visible in the active queue (including synthetic IDs)."""
+    queue = build_work_queue(
+        state,
+        options=QueueBuildOptions(
+            count=None,
+            plan=plan,
+        ),
+    )
+    out: set[str] = set()
+    for item in queue.get("items", []):
+        issue_id = item.get("id")
+        if isinstance(issue_id, str) and issue_id:
+            out.add(issue_id)
+    return out
+
+
+def _queue_pattern_matches(queue_ids: set[str], pattern: str) -> list[str]:
+    """Match a plan pattern against queue IDs (supports literals + globs)."""
+    matches: list[str] = []
+    for issue_id in queue_ids:
+        if issue_id == pattern:
+            matches.append(issue_id)
+            continue
+        if "*" in pattern and fnmatch.fnmatch(issue_id, pattern):
+            matches.append(issue_id)
+            continue
+        if issue_id.startswith(pattern):
+            matches.append(issue_id)
+    return sorted(set(matches))
+
+
 def resolve_ids_from_patterns(
     state: StateModel,
     patterns: list[str],
@@ -40,6 +75,7 @@ def resolve_ids_from_patterns(
     seen: set[str] = set()
     result: list[str] = []
     plan_ids = _collect_plan_ids(plan)
+    queue_ids: set[str] | None = None
 
     for pattern in patterns:
         matches = match_issues(state, pattern, status_filter=status_filter)
@@ -50,6 +86,13 @@ def resolve_ids_from_patterns(
         if pattern in plan_ids:
             # Literal plan ID (e.g. subjective::foo) not in state issues
             _append_unique(pattern, seen, result)
+            continue
+        if queue_ids is None:
+            queue_ids = _collect_queue_ids(state, plan)
+        queue_matches = _queue_pattern_matches(queue_ids, pattern)
+        if queue_matches:
+            for issue_id in queue_matches:
+                _append_unique(issue_id, seen, result)
             continue
         if plan is not None and pattern in plan.get("clusters", {}):
             # Cluster name → expand to member IDs
