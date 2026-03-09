@@ -9,11 +9,11 @@ from desloppify.engine.plan import PlanModel
 from desloppify.state import StateModel, match_issues
 
 
-def _append_unique(fid: str, seen: set[str], result: list[str]) -> None:
-    if fid in seen:
+def _append_unique(issue_id: str, seen: set[str], result: list[str]) -> None:
+    if issue_id in seen:
         return
-    seen.add(fid)
-    result.append(fid)
+    seen.add(issue_id)
+    result.append(issue_id)
 
 
 def _collect_plan_ids(plan: PlanModel | None) -> set[str]:
@@ -96,8 +96,8 @@ def resolve_ids_from_patterns(
             continue
         if plan is not None and pattern in plan.get("clusters", {}):
             # Cluster name → expand to member IDs
-            for fid in plan["clusters"][pattern].get("issue_ids", []):
-                _append_unique(fid, seen, result)
+            for issue_id in plan["clusters"][pattern].get("issue_ids", []):
+                _append_unique(issue_id, seen, result)
     return result
 
 

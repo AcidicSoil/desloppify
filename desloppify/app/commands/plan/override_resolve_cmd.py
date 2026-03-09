@@ -60,10 +60,17 @@ def cmd_plan_resolve(args: argparse.Namespace) -> None:
         plan = load_plan()
 
         blocked_map = blocked_triage_stages(plan)
-        for sid in synthetic_ids:
-            if sid in blocked_map:
-                deps_text = ", ".join(dep.replace("triage::", "") for dep in blocked_map[sid])
-                print(colorize(f"  Cannot resolve {sid} — blocked by: {deps_text}", "red"))
+        for synthetic_id in synthetic_ids:
+            if synthetic_id in blocked_map:
+                deps_text = ", ".join(
+                    dep.replace("triage::", "") for dep in blocked_map[synthetic_id]
+                )
+                print(
+                    colorize(
+                        f"  Cannot resolve {synthetic_id} — blocked by: {deps_text}",
+                        "red",
+                    )
+                )
                 print(
                     colorize(
                         "  Complete those stages first, or use --force-resolve to override.",
@@ -74,9 +81,9 @@ def cmd_plan_resolve(args: argparse.Namespace) -> None:
                     return
 
         gated_ids = [
-            sid
-            for sid in synthetic_ids
-            if sid in {WORKFLOW_SCORE_CHECKPOINT_ID, WORKFLOW_CREATE_PLAN_ID}
+            synthetic_id
+            for synthetic_id in synthetic_ids
+            if synthetic_id in {WORKFLOW_SCORE_CHECKPOINT_ID, WORKFLOW_CREATE_PLAN_ID}
         ]
         if gated_ids:
             force = getattr(args, "force_resolve", False)
@@ -329,8 +336,8 @@ def cmd_plan_resolve(args: argparse.Namespace) -> None:
             print(colorize(msg, "green"))
         append_log_entry(plan, "done", issue_ids=synthetic_ids, actor="user", note=note)
         save_plan(plan)
-        for sid in synthetic_ids:
-            print(colorize(f"  Resolved: {sid}", "green"))
+        for synthetic_id in synthetic_ids:
+            print(colorize(f"  Resolved: {synthetic_id}", "green"))
         if not real_patterns:
             return
         patterns = real_patterns

@@ -15,12 +15,12 @@ def check_cluster_guard(patterns: list[str], plan: dict, state: dict) -> bool:
     for pattern in patterns:
         if pattern in clusters:
             cluster = clusters[pattern]
-            ids = [
-                fid
-                for fid in cluster.get("issue_ids", [])
-                if fid in issues and issues[fid].get("status") == "open"
+            issue_ids = [
+                issue_id
+                for issue_id in cluster.get("issue_ids", [])
+                if issue_id in issues and issues[issue_id].get("status") == "open"
             ]
-            if len(ids) == 0:
+            if len(issue_ids) == 0:
                 print(
                     colorize(
                         f"\n  Cluster '{pattern}' is empty — add items before marking it done.\n",
@@ -29,8 +29,8 @@ def check_cluster_guard(patterns: list[str], plan: dict, state: dict) -> bool:
                 )
                 print(colorize(f"  Use: desloppify plan cluster add {pattern} <issue-id>", "dim"))
                 return True
-            if len(ids) <= _CLUSTER_INDIVIDUAL_THRESHOLD:
-                print_cluster_guard(pattern, ids, state)
+            if len(issue_ids) <= _CLUSTER_INDIVIDUAL_THRESHOLD:
+                print_cluster_guard(pattern, issue_ids, state)
                 return True
     return False
 
@@ -43,11 +43,11 @@ def print_cluster_guard(cluster_name: str, issue_ids: list[str], state: dict) ->
             "yellow",
         )
     )
-    for fid in issue_ids:
-        issue = issues.get(fid, {})
+    for issue_id in issue_ids:
+        issue = issues.get(issue_id, {})
         summary = issue.get("summary", "(no summary)")[:80]
         detector = issue.get("detector", "?")
-        print(f"    {fid}  [{detector}]  {summary}")
+        print(f"    {issue_id}  [{detector}]  {summary}")
     print(
         colorize(
             "\n  Use: desloppify resolve <id> --status fixed --note '...' --attest '...'",
@@ -62,9 +62,13 @@ def print_cluster_guard(cluster_name: str, issue_ids: list[str], state: dict) ->
     )
 
 
-def is_synthetic_id(fid: str) -> bool:
+def is_synthetic_id(issue_id: str) -> bool:
     """Return True if the ID is a synthetic workflow/triage item."""
-    return fid.startswith("triage::") or fid.startswith("workflow::") or fid.startswith("subjective::")
+    return (
+        issue_id.startswith("triage::")
+        or issue_id.startswith("workflow::")
+        or issue_id.startswith("subjective::")
+    )
 
 
 def resolve_synthetic_ids(patterns: list[str]) -> tuple[list[str], list[str]]:
@@ -85,15 +89,15 @@ def blocked_triage_stages(plan: dict) -> dict[str, list[str]]:
     stage_names = ("observe", "reflect", "organize", "enrich", "sense-check", "commit")
 
     blocked: dict[str, list[str]] = {}
-    for sid, name in zip(TRIAGE_STAGE_IDS, stage_names, strict=False):
-        if sid not in present or name in confirmed:
+    for stage_id, name in zip(TRIAGE_STAGE_IDS, stage_names, strict=False):
+        if stage_id not in present or name in confirmed:
             continue
         deps = TRIAGE_STAGE_DEPENDENCIES.get(name, set())
         unmet = sorted(
             f"triage::{dep}" for dep in deps if f"triage::{dep}" in present and dep not in confirmed
         )
         if unmet:
-            blocked[sid] = unmet
+            blocked[stage_id] = unmet
     return blocked
 
 
