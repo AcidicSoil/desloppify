@@ -55,13 +55,26 @@ def _print_score_recipe(
     mech_avg: float,
     subj_avg: float | None,
 ) -> None:
-    recipe_lines = _score_recipe_lines(
-        mech_frac=mech_frac,
-        subj_frac=subj_frac,
-        mech_avg=mech_avg,
-        subj_avg=subj_avg,
-    )
-    print(colorize_fn("  Score recipe:", "dim"))
+    recipe_lines = [
+        line.strip()
+        for line in _score_recipe_lines(
+            mech_frac=mech_frac,
+            subj_frac=subj_frac,
+            mech_avg=mech_avg,
+            subj_avg=subj_avg,
+        )
+        if isinstance(line, str) and line.strip()
+    ]
+    if not recipe_lines:
+        return
+
+    label = "  Score recipe:"
+    if subj_avg is None or subj_frac <= 0.0:
+        label = "  Score recipe (objective-only):"
+    elif mech_frac <= 0.0:
+        label = "  Score recipe (subjective-only):"
+
+    print(colorize_fn(label, "dim"))
     for recipe_line in recipe_lines:
         print(colorize_fn(f"    {recipe_line}", "dim"))
 

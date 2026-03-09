@@ -75,19 +75,45 @@ def resolve_detection_settings(
     """Return explicit settings, preferring an already-built config object."""
     if config is not None:
         return config
+
+    normalized_names = tuple(
+        dict.fromkeys(
+            name.strip().lower()
+            for name in thin_wrapper_names
+            if isinstance(name, str) and name.strip()
+        )
+    )
+    if not normalized_names:
+        normalized_names = DEFAULT_THIN_WRAPPER_NAMES
+
+    normalized_threshold = max(1, int(threshold))
+    normalized_child_threshold = max(1, int(child_dir_threshold))
+    normalized_child_weight = max(1, int(child_dir_weight))
+    normalized_combined_threshold = max(1, int(combined_threshold))
+    normalized_sparse_parent_threshold = max(1, int(sparse_parent_child_threshold))
+    normalized_sparse_child_file = max(0, int(sparse_child_file_threshold))
+    normalized_sparse_child_count = max(1, int(sparse_child_count_threshold))
+    normalized_sparse_ratio = max(0.0, min(1.0, float(sparse_child_ratio_threshold)))
+    normalized_wrapper_parent_sibling = max(
+        1,
+        int(thin_wrapper_parent_sibling_threshold),
+    )
+    normalized_wrapper_file_count = max(0, int(thin_wrapper_max_file_count))
+    normalized_wrapper_child_count = max(0, int(thin_wrapper_max_child_dir_count))
+
     return FlatDirDetectionConfig(
-        threshold=threshold,
-        child_dir_threshold=child_dir_threshold,
-        child_dir_weight=child_dir_weight,
-        combined_threshold=combined_threshold,
-        sparse_parent_child_threshold=sparse_parent_child_threshold,
-        sparse_child_file_threshold=sparse_child_file_threshold,
-        sparse_child_count_threshold=sparse_child_count_threshold,
-        sparse_child_ratio_threshold=sparse_child_ratio_threshold,
-        thin_wrapper_parent_sibling_threshold=thin_wrapper_parent_sibling_threshold,
-        thin_wrapper_max_file_count=thin_wrapper_max_file_count,
-        thin_wrapper_max_child_dir_count=thin_wrapper_max_child_dir_count,
-        thin_wrapper_names=thin_wrapper_names,
+        threshold=normalized_threshold,
+        child_dir_threshold=normalized_child_threshold,
+        child_dir_weight=normalized_child_weight,
+        combined_threshold=normalized_combined_threshold,
+        sparse_parent_child_threshold=normalized_sparse_parent_threshold,
+        sparse_child_file_threshold=normalized_sparse_child_file,
+        sparse_child_count_threshold=normalized_sparse_child_count,
+        sparse_child_ratio_threshold=normalized_sparse_ratio,
+        thin_wrapper_parent_sibling_threshold=normalized_wrapper_parent_sibling,
+        thin_wrapper_max_file_count=normalized_wrapper_file_count,
+        thin_wrapper_max_child_dir_count=normalized_wrapper_child_count,
+        thin_wrapper_names=normalized_names,
     )
 
 

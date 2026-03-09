@@ -38,21 +38,31 @@ def detect_flat_dirs(
     thin_wrapper_names: tuple[str, ...] = DEFAULT_THIN_WRAPPER_NAMES,
 ) -> tuple[list[dict], int]:
     """Find overloaded/fragmented directories using count and fan-out heuristics."""
-    settings = resolve_detection_settings(
-        threshold=threshold,
-        config=config,
-        child_dir_threshold=child_dir_threshold,
-        child_dir_weight=child_dir_weight,
-        combined_threshold=combined_threshold,
-        sparse_parent_child_threshold=sparse_parent_child_threshold,
-        sparse_child_file_threshold=sparse_child_file_threshold,
-        sparse_child_count_threshold=sparse_child_count_threshold,
-        sparse_child_ratio_threshold=sparse_child_ratio_threshold,
-        thin_wrapper_parent_sibling_threshold=thin_wrapper_parent_sibling_threshold,
-        thin_wrapper_max_file_count=thin_wrapper_max_file_count,
-        thin_wrapper_max_child_dir_count=thin_wrapper_max_child_dir_count,
-        thin_wrapper_names=thin_wrapper_names,
-    )
+    if config is None:
+        cleaned_wrapper_names = tuple(
+            dict.fromkeys(
+                name.strip().lower()
+                for name in thin_wrapper_names
+                if isinstance(name, str) and name.strip()
+            )
+        )
+        settings = resolve_detection_settings(
+            threshold=threshold,
+            config=None,
+            child_dir_threshold=child_dir_threshold,
+            child_dir_weight=child_dir_weight,
+            combined_threshold=combined_threshold,
+            sparse_parent_child_threshold=sparse_parent_child_threshold,
+            sparse_child_file_threshold=sparse_child_file_threshold,
+            sparse_child_count_threshold=sparse_child_count_threshold,
+            sparse_child_ratio_threshold=sparse_child_ratio_threshold,
+            thin_wrapper_parent_sibling_threshold=thin_wrapper_parent_sibling_threshold,
+            thin_wrapper_max_file_count=thin_wrapper_max_file_count,
+            thin_wrapper_max_child_dir_count=thin_wrapper_max_child_dir_count,
+            thin_wrapper_names=cleaned_wrapper_names or DEFAULT_THIN_WRAPPER_NAMES,
+        )
+    else:
+        settings = config
     files = file_finder(path)
     scan_root = path.resolve()
     dir_counts, child_dirs = build_dir_stats(scan_root, files)
