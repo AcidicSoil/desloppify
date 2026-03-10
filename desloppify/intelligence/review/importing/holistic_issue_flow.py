@@ -107,13 +107,13 @@ def validate_and_build_issues(
         content_hash = hashlib.sha256(summary_text.encode()).hexdigest()[:8]
         detail: dict[str, Any] = {
             "holistic": True,
+            "content_hash": content_hash,
             "dimension": dimension,
             "related_files": issue["related_files"],
             "evidence": issue["evidence"],
             "suggestion": issue.get("suggestion", ""),
             "reasoning": issue.get("reasoning", ""),
         }
-        detail["content_hash"] = content_hash
         if is_confirmed_concern:
             detail["concern_type"] = issue.get("concern_type", "")
             detail["concern_verdict"] = "confirmed"
