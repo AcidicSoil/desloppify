@@ -40,16 +40,6 @@ def _normalize_match_path(raw_path: object) -> str | None:
     return str(Path(raw_path).expanduser().resolve(strict=False))
 
 
-def _packet_sha256_from_import_payload(import_payload: dict[str, Any] | None) -> str:
-    if not isinstance(import_payload, dict):
-        return ""
-    raw_provenance = import_payload.get("provenance")
-    if not isinstance(raw_provenance, dict):
-        return ""
-    raw_hash = raw_provenance.get("packet_sha256")
-    return str(raw_hash).strip() if isinstance(raw_hash, str) else ""
-
-
 def _latest_assessment_audit(
     state: StateModel,
     *,
@@ -73,6 +63,11 @@ def _build_pending_import_scores_meta(
     import_payload: dict[str, Any] | None,
     issues_only_audit: dict[str, Any] | None,
 ) -> dict[str, Any]:
+    provenance = {}
+    if isinstance(import_payload, dict):
+        raw_provenance = import_payload.get("provenance")
+        if isinstance(raw_provenance, dict):
+            provenance = raw_provenance
     recorded_file = (
         str(import_file).strip()
         if isinstance(import_file, str) and import_file.strip()
@@ -87,7 +82,7 @@ def _build_pending_import_scores_meta(
         "timestamp": timestamp,
         "import_file": recorded_file,
         "normalized_import_file": _normalize_match_path(recorded_file),
-        "packet_sha256": _packet_sha256_from_import_payload(import_payload),
+        "packet_sha256": str(provenance.get("packet_sha256", "")).strip(),
     }
 
 

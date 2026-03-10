@@ -7,16 +7,10 @@ import desloppify.state_scoring as state_scoring_mod
 
 def test_score_snapshot_loads_all_canonical_scores(monkeypatch) -> None:
     state = {"issues": {}}
-    monkeypatch.setattr(
-        state_scoring_mod,
-        "_score_reader_functions",
-        lambda: (
-            lambda _state: 81.0,
-            lambda _state: 73.0,
-            lambda _state: 69.0,
-            lambda _state: 64.0,
-        ),
-    )
+    monkeypatch.setattr(state_scoring_mod, "get_overall_score", lambda _state: 81.0)
+    monkeypatch.setattr(state_scoring_mod, "get_objective_score", lambda _state: 73.0)
+    monkeypatch.setattr(state_scoring_mod, "get_strict_score", lambda _state: 69.0)
+    monkeypatch.setattr(state_scoring_mod, "get_verified_strict_score", lambda _state: 64.0)
 
     snapshot = state_scoring_mod.score_snapshot(state)
     assert snapshot == state_scoring_mod.ScoreSnapshot(

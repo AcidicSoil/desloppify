@@ -25,6 +25,9 @@ class _Services:
         self.save_calls = 0
         self.logs: list[dict] = []
 
+    def command_runtime(self, _args) -> SimpleNamespace:
+        return SimpleNamespace(state={"issues": {}})
+
     def load_plan(self) -> dict:
         return self.plan
 

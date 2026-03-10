@@ -23,23 +23,13 @@ class ScoreSnapshot(NamedTuple):
     verified: float | None
 
 
-def _score_reader_functions():
-    return (
-        get_overall_score,
-        get_objective_score,
-        get_strict_score,
-        get_verified_strict_score,
-    )
-
-
 def score_snapshot(state: StateModel) -> ScoreSnapshot:
     """Load all four canonical scores from *state* in one call."""
-    overall_fn, objective_fn, strict_fn, verified_fn = _score_reader_functions()
     return ScoreSnapshot(
-        overall=overall_fn(state),
-        objective=objective_fn(state),
-        strict=strict_fn(state),
-        verified=verified_fn(state),
+        overall=get_overall_score(state),
+        objective=get_objective_score(state),
+        strict=get_strict_score(state),
+        verified=get_verified_strict_score(state),
     )
 
 

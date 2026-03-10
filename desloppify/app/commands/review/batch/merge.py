@@ -203,7 +203,7 @@ def merge_batch_results(
         "dimension_notes": merged_dimension_notes,
         "dimension_judgment": merged_dimension_judgment,
         "issues": merged_issues,
-        "quality": {
+        "review_quality": {
             "batch_count": len(batch_results),
             "dimension_coverage": round(
                 sum(coverage_values) / max(len(coverage_values), 1),
