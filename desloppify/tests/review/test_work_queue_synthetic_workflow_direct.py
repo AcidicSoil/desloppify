@@ -17,6 +17,7 @@ def test_build_run_scan_item_only_while_postflight_scan_is_pending() -> None:
     assert item is not None
     assert item["id"] == "workflow::run-scan"
     assert item["kind"] == "workflow_action"
+    assert item["execution_visibility"] == "always"
     assert item["primary_command"] == "desloppify scan"
 
     completed = workflow_mod.build_run_scan_item(
@@ -180,6 +181,7 @@ def test_build_deferred_disposition_item_with_temporary_skips() -> None:
     assert item is not None
     assert item["id"] == WORKFLOW_DEFERRED_DISPOSITION_ID
     assert item["kind"] == "workflow_action"
+    assert item["execution_visibility"] == "always"
     assert "0 clusters + 2 individual items" in item["summary"]
     assert item["primary_command"] == 'desloppify plan unskip "*"'
     assert item["detail"]["deferred_cluster_count"] == 0

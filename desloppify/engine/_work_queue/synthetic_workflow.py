@@ -268,6 +268,7 @@ def build_run_scan_item(plan: dict) -> WorkQueueItem | None:
         "detail": {
             "phase": "postflight_scan",
         },
+        "execution_visibility": "always",
         "primary_command": "desloppify scan",
         "blocked_by": [],
         "is_blocked": False,
@@ -351,6 +352,7 @@ def build_deferred_disposition_item(plan: dict) -> WorkQueueItem | None:
         "detector": "workflow",
         "file": ".",
         "kind": "workflow_action",
+        "execution_visibility": "always",
         "summary": (
             "Deferred backlog decision required: "
             f"{cluster_count} {cluster_label} + {individual_count} individual {individual_label} "

@@ -40,10 +40,6 @@ from desloppify.engine._work_queue.synthetic import (
     build_triage_stage_items,
 )
 from desloppify.engine._work_queue.types import WorkQueueItem
-from desloppify.engine.plan_queue import (
-    WORKFLOW_DEFERRED_DISPOSITION_ID,
-    WORKFLOW_RUN_SCAN_ID,
-)
 from desloppify.engine._state.schema import StateModel
 
 
@@ -286,27 +282,27 @@ def _filter_plan_visibility(
     tracked_ids = _planned_item_ids(plan)
     if not tracked_ids:
         if visibility == QueueVisibility.EXECUTION:
-            return [item for item in items if _is_untracked_execution_workflow(item)]
+            return [item for item in items if _is_implicit_execution_workflow(item)]
         return items
     if visibility == QueueVisibility.EXECUTION:
         return [
             item for item in items
-            if item["id"] in tracked_ids or _is_untracked_execution_workflow(item)
+            if item["id"] in tracked_ids or _is_implicit_execution_workflow(item)
         ]
     if visibility == QueueVisibility.BACKLOG:
         return [
             item for item in items
-            if item["id"] not in tracked_ids and not _is_untracked_execution_workflow(item)
+            if item["id"] not in tracked_ids and not _is_implicit_execution_workflow(item)
         ]
     return items
 
 
-def _is_untracked_execution_workflow(item: WorkQueueItem) -> bool:
-    """Return True for synthetic execution items not persisted in queue_order."""
-    return item.get("kind") == "workflow_action" and item.get("id") in {
-        WORKFLOW_DEFERRED_DISPOSITION_ID,
-        WORKFLOW_RUN_SCAN_ID,
-    }
+def _is_implicit_execution_workflow(item: WorkQueueItem) -> bool:
+    """Return True for workflow items that opt into execution visibility."""
+    return (
+        item.get("kind") == "workflow_action"
+        and item.get("execution_visibility") == "always"
+    )
 
 
 

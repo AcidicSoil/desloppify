@@ -705,26 +705,26 @@ def test_lifecycle_filter_forces_triage_when_only_subjective_clusters() -> None:
     assert filtered == [items[1]]
 
 
-def test_endgame_only_detectors_is_subset_of_non_objective() -> None:
-    """ENDGAME_ONLY_DETECTORS must be a subset of NON_OBJECTIVE_DETECTORS."""
+def test_postflight_non_objective_detectors_match_non_objective_policy() -> None:
+    """Post-flight non-objective detectors should match the shared policy."""
     from desloppify.engine.plan_queue import NON_OBJECTIVE_DETECTORS
 
-    assert lifecycle_mod.ENDGAME_ONLY_DETECTORS <= NON_OBJECTIVE_DETECTORS
-    assert lifecycle_mod.ENDGAME_ONLY_DETECTORS == NON_OBJECTIVE_DETECTORS
+    assert lifecycle_mod.POSTFLIGHT_NON_OBJECTIVE_DETECTORS <= NON_OBJECTIVE_DETECTORS
+    assert lifecycle_mod.POSTFLIGHT_NON_OBJECTIVE_DETECTORS == NON_OBJECTIVE_DETECTORS
 
 
-def test_is_endgame_only_uses_endgame_detectors_constant() -> None:
-    """_is_endgame_only should match items by the ENDGAME_ONLY_DETECTORS set."""
-    for det in lifecycle_mod.ENDGAME_ONLY_DETECTORS:
+def test_is_postflight_non_objective_item_uses_postflight_detector_set() -> None:
+    """Non-initial post-flight items should match the shared detector set."""
+    for det in lifecycle_mod.POSTFLIGHT_NON_OBJECTIVE_DETECTORS:
         item = {"kind": "issue", "id": f"{det}::x", "detector": det}
-        assert lifecycle_mod._is_endgame_only(item) is True
+        assert lifecycle_mod._is_postflight_non_objective_item(item) is True
     initial_review = {
         "kind": "subjective_dimension",
         "id": "subjective::naming",
         "detector": "subjective_assessment",
         "initial_review": True,
     }
-    assert lifecycle_mod._is_endgame_only(initial_review) is False
+    assert lifecycle_mod._is_postflight_non_objective_item(initial_review) is False
 
 
 def test_lifecycle_filter_hides_subjective_review_issue_while_objective_work_exists() -> None:

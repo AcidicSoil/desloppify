@@ -9,21 +9,22 @@ from desloppify.engine.plan_queue import (
 )
 from desloppify.engine._work_queue.types import WorkQueueItem
 
-# Detectors whose issues should only surface after objective queue is drained.
+# Non-objective detectors that belong to the post-flight phase once objective
+# execution work is drained.
 # Must be a subset of NON_OBJECTIVE_DETECTORS.
-ENDGAME_ONLY_DETECTORS: frozenset[str] = NON_OBJECTIVE_DETECTORS
+POSTFLIGHT_NON_OBJECTIVE_DETECTORS: frozenset[str] = NON_OBJECTIVE_DETECTORS
 
 
-def _validate_endgame_only_detectors() -> None:
-    missing = ENDGAME_ONLY_DETECTORS - NON_OBJECTIVE_DETECTORS
+def _validate_postflight_non_objective_detectors() -> None:
+    missing = POSTFLIGHT_NON_OBJECTIVE_DETECTORS - NON_OBJECTIVE_DETECTORS
     if missing:
         raise RuntimeError(
-            "ENDGAME_ONLY_DETECTORS has items not in NON_OBJECTIVE_DETECTORS: "
+            "POSTFLIGHT_NON_OBJECTIVE_DETECTORS has items not in NON_OBJECTIVE_DETECTORS: "
             f"{missing}"
         )
 
 
-_validate_endgame_only_detectors()
+_validate_postflight_non_objective_detectors()
 
 
 def _has_objective_items(items: list[WorkQueueItem]) -> bool:
@@ -48,16 +49,16 @@ def _has_initial_reviews(items: list[WorkQueueItem]) -> bool:
     )
 
 
-def _is_endgame_only(item: WorkQueueItem) -> bool:
-    """True if this item should only appear when the objective queue is drained."""
+def _is_postflight_non_objective_item(item: WorkQueueItem) -> bool:
+    """True if this item belongs to the non-objective post-flight review phase."""
     if item.get("kind") == "subjective_dimension":
         return not item.get("initial_review")
-    return item.get("detector", "") in ENDGAME_ONLY_DETECTORS
+    return item.get("detector", "") in POSTFLIGHT_NON_OBJECTIVE_DETECTORS
 
 
-def _has_endgame_subjective(items: list[WorkQueueItem]) -> bool:
-    """True if any non-initial subjective review items are pending."""
-    return any(_is_endgame_only(item) for item in items)
+def _has_postflight_non_objective_items(items: list[WorkQueueItem]) -> bool:
+    """True if any non-objective post-flight review items are pending."""
+    return any(_is_postflight_non_objective_item(item) for item in items)
 
 
 def _has_triage_stages(items: list[WorkQueueItem]) -> bool:
@@ -112,7 +113,7 @@ def _is_force_visible(item: WorkQueueItem) -> bool:
 
 def _is_postflight_phase_item(item: WorkQueueItem) -> bool:
     return (
-        _is_endgame_only(item)
+        _is_postflight_non_objective_item(item)
         or _is_triage_stage(item)
         or _is_deferred_disposition(item)
         or _is_postflight_scan(item)
@@ -146,10 +147,10 @@ def apply_lifecycle_filter(items: list[WorkQueueItem]) -> list[WorkQueueItem]:
             item for item in items
             if _is_postflight_scan(item) or _is_force_visible(item)
         ]
-    if _has_endgame_subjective(items):
+    if _has_postflight_non_objective_items(items):
         return [
             item for item in items
-            if _is_endgame_only(item) or _is_force_visible(item)
+            if _is_postflight_non_objective_item(item) or _is_force_visible(item)
         ]
     if _has_postflight_workflow(items):
         return [
