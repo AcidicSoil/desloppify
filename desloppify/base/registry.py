@@ -24,9 +24,6 @@ _BASE_JUDGMENT_DETECTORS: frozenset[str] = frozenset(
     name for name, meta in _BASE_DETECTORS.items() if meta.needs_judgment
 )
 
-# Read-only catalog baseline (stable public constant).
-DISPLAY_ORDER: tuple[str, ...] = tuple(_BASE_DISPLAY_ORDER)
-
 @dataclass
 class _DetectorRegistryState:
     detectors: dict[str, DetectorMeta] = field(default_factory=dict)
@@ -186,7 +183,6 @@ def detector_tools() -> dict[str, dict[str, Any]]:
 
 __all__ = [
     "DETECTORS",
-    "DISPLAY_ORDER",
     "DetectorMeta",
     "JUDGMENT_DETECTORS",
     "_DISPLAY_ORDER",

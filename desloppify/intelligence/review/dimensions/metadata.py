@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 from desloppify.base.subjective_dimensions import (
+    default_dimension_keys_for_lang,
     configure_subjective_dimension_providers,
     default_display_names_map,
     dimension_display_name,
@@ -59,6 +60,7 @@ configure_subjective_dimension_providers(
 
 
 __all__ = [
+    "default_dimension_keys_for_lang",
     "default_display_names_map",
     "dimension_display_name",
     "dimension_weight",
@@ -70,4 +72,3 @@ __all__ = [
     "load_subjective_dimension_metadata_for_lang",
     "resettable_default_dimensions",
 ]
-
