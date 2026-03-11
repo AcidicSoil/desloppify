@@ -66,6 +66,35 @@ def test_load_state_drops_stale_reconstructed_state_without_live_plan(tmp_path: 
     assert loaded["scan_metadata"]["source"] == "empty"
 
 
+def test_load_state_keeps_existing_state_when_saved_plan_load_is_degraded(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    """State recovery should treat saved-plan load failures as degraded, not silently rebuild."""
+    state = empty_state()
+    state["issues"] = {
+        "review::src/foo.ts::abcd1234": {
+            "id": "review::src/foo.ts::abcd1234",
+            "status": "open",
+            "tier": 2,
+        }
+    }
+    state_path = tmp_path / "state-typescript.json"
+    state_path.write_text(json.dumps(state))
+    (tmp_path / "plan.json").write_text("{}")
+
+    monkeypatch.setattr(
+        "desloppify.engine._state.persistence.load_plan_state",
+        lambda _path: (_ for _ in ()).throw(OSError("boom")),
+    )
+
+    loaded = load_state(state_path)
+
+    assert "review::src/foo.ts::abcd1234" in loaded["issues"]
+    assert loaded["issues"]["review::src/foo.ts::abcd1234"]["status"] == "open"
+    assert loaded["scan_metadata"]["source"] == "empty"
+
+
 def test_cmd_plan_queue_uses_recovered_runtime_state(monkeypatch, capsys) -> None:
     """Queue rendering should continue when runtime already carries recovered state."""
     captured_states: list[dict] = []

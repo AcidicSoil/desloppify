@@ -14,6 +14,7 @@ from collections.abc import Generator
 from pathlib import Path
 from typing import cast
 
+from desloppify.base.exception_sets import PLAN_LOAD_EXCEPTIONS
 __all__ = [
     "load_state",
     "save_state",
@@ -24,6 +25,7 @@ from desloppify.base.discovery.file_paths import safe_write_text
 from desloppify.base.text_utils import is_numeric
 from desloppify.engine._plan.persistence import load_plan as load_plan_state
 from desloppify.engine._plan.persistence import plan_path_for_state
+from desloppify.engine.plan_state import PlanLoadStatus
 from desloppify.engine._state.recovery import (
     has_saved_plan_without_scan,
     reconstruct_state_from_saved_plan,
@@ -78,9 +80,18 @@ def _reconstruct_from_saved_plan_if_available(
     state_path: Path,
     state: StateModel,
 ) -> StateModel:
-    try:
-        plan = load_plan_state(plan_path_for_state(state_path))
-    except Exception:
+    plan_status = _saved_plan_load_status(state_path)
+    if plan_status.degraded:
+        logger.warning(
+            "Saved plan load degraded during state recovery for %s: %s",
+            state_path,
+            plan_status.error_kind,
+        )
+        if scan_source(state) == "plan_reconstruction":
+            return cast(StateModel, _normalize_loaded_state(empty_state()))
+        return state
+    plan = plan_status.plan
+    if plan is None:
         if scan_source(state) == "plan_reconstruction":
             return cast(StateModel, _normalize_loaded_state(empty_state()))
         return state
@@ -90,6 +101,24 @@ def _reconstruct_from_saved_plan_if_available(
     if scan_source(state) == "plan_reconstruction":
         return cast(StateModel, _normalize_loaded_state(empty_state()))
     return state
+
+
+def _saved_plan_load_status(state_path: Path) -> PlanLoadStatus:
+    plan_path = plan_path_for_state(state_path)
+    if not plan_path.exists():
+        return PlanLoadStatus(plan=None, degraded=False, error_kind=None)
+    try:
+        return PlanLoadStatus(
+            plan=load_plan_state(plan_path),
+            degraded=False,
+            error_kind=None,
+        )
+    except PLAN_LOAD_EXCEPTIONS as exc:
+        return PlanLoadStatus(
+            plan=None,
+            degraded=True,
+            error_kind=exc.__class__.__name__,
+        )
 
 
 def load_state(path: Path | None = None) -> StateModel:

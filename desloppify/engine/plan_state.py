@@ -15,11 +15,13 @@ from desloppify.engine._plan.commit_tracking import (
 )
 from desloppify.engine._plan.persistence import (
     PLAN_FILE,
+    PlanLoadStatus,
     get_plan_file,
     has_living_plan,
     load_plan,
     plan_lock,
     plan_path_for_state,
+    resolve_plan_load_status,
     save_plan,
 )
 from desloppify.engine._plan.policy.project import (
@@ -59,6 +61,7 @@ __all__ = [
     "ItemOverride",
     "PLAN_FILE",
     "PLAN_VERSION",
+    "PlanLoadStatus",
     "PolicyLoadResult",
     "PlanModel",
     "SkipEntry",
@@ -85,6 +88,7 @@ __all__ = [
     "record_commit",
     "remove_rule",
     "render_policy_block",
+    "resolve_plan_load_status",
     "save_plan",
     "save_policy",
     "suggest_commit_message",
