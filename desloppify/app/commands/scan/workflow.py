@@ -186,6 +186,7 @@ def _configure_lang_runtime(
         overrides=LangRunOverrides(
             review_cache=state.get("review_cache", {}),
             review_max_age_days=config.get("review_max_age_days", 30),
+            subjective_assessments=_state_subjective_assessments(state),
             runtime_settings=lang_settings,
             runtime_options=lang_options,
             large_threshold_override=config.get("large_files_threshold", 0),

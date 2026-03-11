@@ -53,20 +53,25 @@ def test_holistic_cache_update_and_resolution_helpers(monkeypatch) -> None:
 
     state: dict = {
         "issues": {
-            "subjective_review::.::holistic_unreviewed": {
-                "id": "subjective_review::.::holistic_unreviewed",
+            "subjective_review::.::naming_quality": {
+                "id": "subjective_review::.::naming_quality",
                 "detector": "subjective_review",
                 "status": "open",
-                "file": "",
+                "file": ".",
+                "detail": {"reason": "unassessed", "dimension": "naming_quality"},
             },
-            "subjective_review::src/a.py::stale": {
-                "id": "subjective_review::src/a.py::stale",
+            "subjective_review::.::logic_clarity": {
+                "id": "subjective_review::.::logic_clarity",
                 "detector": "subjective_review",
                 "status": "open",
-                "file": "src/a.py",
+                "file": ".",
+                "detail": {"reason": "stale", "dimension": "logic_clarity"},
             },
         },
         "review_cache": {"files": {"src/a.py": {}, "src/b.py": {}}},
+        "subjective_assessments": {
+            "naming_quality": {"score": 70},
+        },
     }
 
     holistic_cache_mod.update_holistic_review_cache(
@@ -81,14 +86,17 @@ def test_holistic_cache_update_and_resolution_helpers(monkeypatch) -> None:
     assert state["review_cache"]["holistic"]["issue_count"] == 1
     assert holistic_cache_mod._resolve_total_files(state, "python") == 2
 
+    # resolve_holistic_coverage_issues resolves dimension-level issues for assessed dims
     diff = {"auto_resolved": 0}
     holistic_cache_mod.resolve_holistic_coverage_issues(
         state,
         diff,
         utc_now_fn=lambda: "2026-03-09T00:00:00+00:00",
     )
-    assert diff["auto_resolved"] >= 1
+    # naming_quality is assessed, so its issue should be resolved
+    assert diff["auto_resolved"] == 1
 
+    # resolve_reviewed_file_coverage_issues is now a no-op
     diff = {"auto_resolved": 0}
     holistic_cache_mod.resolve_reviewed_file_coverage_issues(
         state,
@@ -96,7 +104,7 @@ def test_holistic_cache_update_and_resolution_helpers(monkeypatch) -> None:
         reviewed_files=["src/a.py"],
         utc_now_fn=lambda: "2026-03-09T00:00:00+00:00",
     )
-    assert diff["auto_resolved"] >= 1
+    assert diff["auto_resolved"] == 0
 
 
 def test_issue_flow_build_collect_and_auto_resolve_paths(monkeypatch) -> None:

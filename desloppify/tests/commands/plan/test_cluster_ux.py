@@ -183,7 +183,7 @@ class TestStepCountFeedback:
 
         args = _fake_args(
             cluster_name="my-cluster",
-            steps=["Rename variables", "Update imports"],
+            steps=[{"title": "Rename variables"}, {"title": "Update imports"}],
         )
         cluster_mod._cmd_cluster_update(args)
         out = capsys.readouterr().out
@@ -271,7 +271,7 @@ class TestStepDisplayNumbering:
 
         args = _fake_args(
             cluster_name="my-cluster",
-            steps=["1. Audit imports", "2. Remove unused"],
+            steps=[{"title": "1. Audit imports"}, {"title": "2. Remove unused"}],
         )
         cluster_mod._cmd_cluster_update(args)
         out = capsys.readouterr().out

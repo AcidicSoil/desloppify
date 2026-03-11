@@ -159,13 +159,10 @@ def primary_command_for_issue(
         if available_fixers:
             return f"desloppify autofix {available_fixers[0]} --dry-run"
     if detector == "subjective_review":
-        from desloppify.intelligence.integrity import (
-            is_holistic_subjective_issue,  # cycle-break: helpers.py ↔ integrity.py
-        )
-
-        if is_holistic_subjective_issue(item):
-            return "desloppify review --prepare"
-        return "desloppify show subjective"
+        dim_key = (item.get("detail") or {}).get("dimension", "")
+        if dim_key:
+            return f"desloppify review --prepare --dimensions {dim_key}"
+        return "desloppify review --prepare"
     return f'desloppify plan resolve "{item.get("id", "")}" --note "<what you did>" --confirm'
 
 

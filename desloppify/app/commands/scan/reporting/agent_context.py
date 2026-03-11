@@ -67,7 +67,7 @@ def _print_score_lines(
         print("\n".join(lines))
     # Score legend — always shown in LLM block so agents understand the scoring model
     print("Score guide:")
-    print("  overall  = 40% mechanical + 60% subjective (lenient — ignores wontfix)")
+    print("  overall  = 25% mechanical + 75% subjective (lenient — ignores wontfix)")
     print("  objective = mechanical detectors only (no subjective review)")
     print("  strict   = like overall, but wontfix counts against you  <-- your north star")
     print("  verified = strict, but only credits scan-verified fixes")

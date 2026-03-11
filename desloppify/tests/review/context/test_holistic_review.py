@@ -680,21 +680,26 @@ class TestImportHolisticIssues:
         assert entry.get("reviewed_at")
 
     def test_reviewed_files_auto_resolves_per_file_coverage_markers(self, tmp_path):
-        state = empty_state()
-        module_path = tmp_path / "pkg" / "module.py"
-        module_path.parent.mkdir(parents=True, exist_ok=True)
-        module_path.write_text("def run():\n    return 1\n")
+        """resolve_reviewed_file_coverage_issues is now a no-op.
 
-        coverage_id = "subjective_review::pkg/module.py::changed"
+        Dimension-level resolution is handled by resolve_holistic_coverage_issues
+        which checks assessed dimensions in state.  This test verifies that
+        importing a holistic review with an assessed dimension resolves the
+        dimension-level subjective_review issue.
+        """
+        state = empty_state()
+
+        coverage_id = "subjective_review::.::high_level_elegance"
         state["issues"][coverage_id] = {
             "id": coverage_id,
             "detector": "subjective_review",
-            "file": "pkg/module.py",
+            "file": ".",
+            "name": "high_level_elegance",
             "status": "open",
-            "summary": "File changed since last review",
-            "detail": {"reason": "changed"},
+            "summary": "High elegance — no assessment on record",
+            "detail": {"reason": "unassessed", "dimension": "high_level_elegance"},
             "tier": 4,
-            "confidence": "medium",
+            "confidence": "low",
             "first_seen": "2026-01-01T00:00:00+00:00",
             "last_seen": "2026-01-01T00:00:00+00:00",
             "resolved_at": None,
@@ -705,7 +710,6 @@ class TestImportHolisticIssues:
         payload = {
             "assessments": {"high_level_elegance": 95},
             "issues": [],
-            "reviewed_files": ["pkg/module.py"],
         }
 
         from desloppify.base.runtime_state import RuntimeContext, runtime_scope

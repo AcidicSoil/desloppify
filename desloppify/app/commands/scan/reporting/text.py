@@ -44,7 +44,7 @@ def build_workflow_guide(attest_example: str) -> str:
           `desloppify plan skip --permanent "<detector>::*::<category>" --note "<why>" --attest "{attest_example}"`
 
         ### Understanding Scores
-        - **Overall**: 40% mechanical + 60% subjective. Lenient — wontfix doesn't count against you.
+        - **Overall**: 25% mechanical + 75% subjective. Lenient — wontfix doesn't count against you.
         - **Objective**: Mechanical detectors only (no subjective review component).
         - **Strict**: Same as overall, but wontfix items count as open. THIS IS YOUR NORTH STAR.
         - **Verified**: Like strict, but only credits fixes the scanner has confirmed.

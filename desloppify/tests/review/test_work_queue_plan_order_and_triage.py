@@ -364,13 +364,13 @@ def test_skipped_objective_items_dont_block_subjective():
     queue = build_work_queue(
         state, count=None, include_subjective=True, plan=plan,
     )
-    subj_ids = [
-        i["id"] for i in queue["items"] if i["id"].startswith("subjective::")
-    ]
+    ids = [i["id"] for i in queue["items"]]
     # All objective items skipped → lifecycle filter sees no objective work
-    # → stale subjective item surfaces
-    assert len(subj_ids) == 1
-    assert "subjective::naming_quality" in subj_ids
+    # → but deferred disposition precedes subjective in lifecycle
+    assert "workflow::deferred-disposition" in ids
+    # Subjective items are gated behind deferred disposition
+    subj_ids = [i for i in ids if i.startswith("subjective::")]
+    assert len(subj_ids) == 0
 
 
 # ── Wontfix / resolved issues excluded (#193) ──────────
@@ -503,6 +503,7 @@ def test_subjective_phase_precedes_score_and_triage_when_objective_drained():
             "subjective::naming_quality",
         ],
         "queue_skipped": {},
+        "refresh_state": {"postflight_scan_completed_at_scan_count": 1},
     }
     queue = build_work_queue(state, count=None, include_subjective=True, plan=plan)
     ids = [item["id"] for item in queue["items"]]

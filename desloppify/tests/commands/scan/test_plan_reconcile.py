@@ -333,7 +333,7 @@ class TestSyncPlanStartScoresAndLog:
         # Mock the queue breakdown to report empty
         monkeypatch.setattr(
             "desloppify.app.commands.helpers.queue_progress.plan_aware_queue_breakdown",
-            lambda s, p: SimpleNamespace(objective_actionable=0, queue_total=0),
+            lambda s, p: SimpleNamespace(objective_actionable=0, queue_total=0, lifecycle_phase="execution"),
         )
         changed = reconcile_mod._sync_plan_start_scores_and_log(plan, state)
         assert changed is True
