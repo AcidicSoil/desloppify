@@ -82,6 +82,19 @@ class TestMakeCmdComplexity:
             mock_detect.assert_called_once()
             mock_display.assert_called_once()
 
+    @patch("desloppify.languages._framework.commands_base.display_entries")
+    def test_uses_threshold_override_from_args(self, mock_display):
+        """Command honors the detect CLI threshold override when provided."""
+        cmd = make_cmd_complexity(file_finder=lambda p: [], signals=[], default_threshold=15)
+        args = SimpleNamespace(path="/tmp/test", threshold=33)
+
+        with patch(
+            "desloppify.engine.detectors.complexity.detect_complexity", return_value=([], 0)
+        ) as mock_detect:
+            cmd(args)
+            assert mock_detect.call_args.kwargs["threshold"] == 33
+            mock_display.assert_called_once()
+
 
 # ── make_cmd_single_use ──────────────────────────────────────
 
