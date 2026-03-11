@@ -89,7 +89,6 @@ def auto_cluster_issues(
     *,
     target_strict: float = DEFAULT_TARGET_STRICT_SCORE,
     policy: SubjectiveVisibility | None = None,
-    cycle_just_completed: bool = False,
 ) -> int:
     """Regenerate auto-clusters from current open issues.
 
@@ -119,7 +118,6 @@ def auto_cluster_issues(
         plan, state, issues, clusters, existing_by_key, active_auto_keys, now,
         target_strict=target_strict,
         policy=policy,
-        cycle_just_completed=cycle_just_completed,
     )
     changes += _prune_stale_clusters(
         plan, issues, clusters, active_auto_keys, now,

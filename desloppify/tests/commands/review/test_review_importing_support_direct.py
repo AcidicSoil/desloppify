@@ -153,12 +153,12 @@ def test_sync_plan_after_import_runs_review_sync_for_auto_resolved_deltas(monkey
         seen["import_called"] = True
         return None
 
-    def fake_stale_sync(_plan, _state, policy=None):
+    def fake_stale_sync(_plan, _state, policy=None, **_kw):
         seen["stale_called"] = True
         return SimpleNamespace(changes=False, injected=[], pruned=[])
 
     monkeypatch.setattr(plan_queue_mod, "sync_plan_after_review_import", fake_import_sync)
-    monkeypatch.setattr(plan_queue_mod, "sync_stale_dimensions", fake_stale_sync)
+    monkeypatch.setattr(plan_queue_mod, "sync_subjective_dimensions", fake_stale_sync)
     monkeypatch.setattr(plan_queue_mod, "append_log_entry", lambda *_a, **_k: None)
 
     plan_sync_mod.sync_plan_after_import(
@@ -182,8 +182,8 @@ def test_sync_plan_after_import_logs_triage_provenance(monkeypatch) -> None:
     monkeypatch.setattr(plan_queue_mod, "purge_ids", lambda _plan, _ids: None)
     monkeypatch.setattr(
         plan_queue_mod,
-        "sync_stale_dimensions",
-        lambda _plan, _state, policy=None: SimpleNamespace(
+        "sync_subjective_dimensions",
+        lambda _plan, _state, policy=None, **_kw: SimpleNamespace(
             changes=False,
             injected=[],
             pruned=[],
@@ -262,8 +262,8 @@ def test_sync_plan_after_import_keeps_workflow_before_triage(monkeypatch) -> Non
     monkeypatch.setattr(plan_queue_mod, "purge_ids", lambda _plan, _ids: None)
     monkeypatch.setattr(
         plan_queue_mod,
-        "sync_stale_dimensions",
-        lambda _plan, _state, policy=None: SimpleNamespace(
+        "sync_subjective_dimensions",
+        lambda _plan, _state, policy=None, **_kw: SimpleNamespace(
             changes=False,
             injected=[],
             pruned=[],
@@ -357,8 +357,8 @@ def test_sync_plan_after_import_reuses_plan_aware_policy(monkeypatch) -> None:
     monkeypatch.setattr(plan_queue_mod, "purge_ids", lambda _plan, _ids: None)
     monkeypatch.setattr(
         plan_queue_mod,
-        "sync_stale_dimensions",
-        lambda _plan, _state, policy=None: SimpleNamespace(
+        "sync_subjective_dimensions",
+        lambda _plan, _state, policy=None, **_kw: SimpleNamespace(
             changes=False,
             injected=[],
             pruned=[],
@@ -393,14 +393,14 @@ def test_sync_plan_after_import_reuses_plan_aware_policy(monkeypatch) -> None:
         seen["import_policy"] = policy
         return None
 
-    def fake_stale_sync(_plan, _state, *, policy=None):
+    def fake_stale_sync(_plan, _state, *, policy=None, **_kw):
         seen["stale_policy"] = policy
         return SimpleNamespace(changes=False, injected=[], pruned=[])
 
     monkeypatch.setattr(plan_queue_mod, "compute_subjective_visibility", fake_compute_policy)
     monkeypatch.setattr(plan_queue_mod, "sync_create_plan_needed", fake_create_plan)
     monkeypatch.setattr(plan_queue_mod, "sync_plan_after_review_import", fake_review_import)
-    monkeypatch.setattr(plan_queue_mod, "sync_stale_dimensions", fake_stale_sync)
+    monkeypatch.setattr(plan_queue_mod, "sync_subjective_dimensions", fake_stale_sync)
 
     plan_sync_mod.sync_plan_after_import(
         state={},
@@ -467,8 +467,8 @@ def test_sync_plan_after_import_does_not_purge_subjective_ids(monkeypatch) -> No
     )
     monkeypatch.setattr(
         plan_queue_mod,
-        "sync_stale_dimensions",
-        lambda _plan, _state, policy=None: SimpleNamespace(
+        "sync_subjective_dimensions",
+        lambda _plan, _state, policy=None, **_kw: SimpleNamespace(
             changes=False,
             injected=[],
             pruned=[],
@@ -770,7 +770,7 @@ def test_plan_sync_source_preserves_scoped_sync_pipeline_contract() -> None:
     assert "import_scores_result = plan_queue_mod.sync_import_scores_needed(" in src
     assert "create_plan_result = plan_queue_mod.sync_create_plan_needed(" in src
     assert "import_result = plan_queue_mod.sync_plan_after_review_import(" in src
-    assert "stale_sync_result = plan_queue_mod.sync_stale_dimensions(" in src
+    assert "stale_sync_result = plan_queue_mod.sync_subjective_dimensions(" in src
     assert 'workflow_injected_ids.append("workflow::communicate-score")' in src
     assert 'workflow_injected_ids.append("workflow::import-scores")' in src
     assert 'workflow_injected_ids.append("workflow::create-plan")' in src

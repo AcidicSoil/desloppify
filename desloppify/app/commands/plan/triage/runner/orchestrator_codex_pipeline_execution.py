@@ -169,6 +169,7 @@ def preflight_stage(
     stage: str,
     plan: Mapping[str, Any],
     triage_input: Any,
+    dry_run: bool,
     append_run_log: Callable[[str], None],
     validate_reflect_issue_accounting: Callable[
         ...,
@@ -176,6 +177,11 @@ def preflight_stage(
     ],
 ) -> tuple[bool, str | None]:
     """Fail fast when a requested stage has invalid upstream prerequisites."""
+    # Dry-run previews do not persist upstream stage reports, so preflight checks that
+    # require recorded reflect/enrich state would otherwise fail by construction.
+    if dry_run and stage in {"organize", "sense-check"}:
+        return True, None
+
     if stage == "sense-check":
         enrich_confirmed_at = (
             plan.get("epic_triage_meta", {})
@@ -552,6 +558,7 @@ def execute_stage(
         stage=stage,
         plan=context.plan,
         triage_input=context.triage_input,
+        dry_run=context.dry_run,
         append_run_log=context.append_run_log,
         validate_reflect_issue_accounting=dependencies.validate_reflect_issue_accounting,
     )

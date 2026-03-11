@@ -44,8 +44,7 @@ from desloppify.engine._plan.policy.subjective import (
 from desloppify.engine._plan.sync.context import has_objective_backlog, is_mid_cycle
 from desloppify.engine._plan.sync.dimensions import (
     current_unscored_ids,
-    sync_stale_dimensions,
-    sync_unscored_dimensions,
+    sync_subjective_dimensions,
 )
 from desloppify.engine._plan.sync.triage import (
     compute_new_issue_ids,
@@ -107,7 +106,6 @@ __all__ = [
     "sync_import_scores_needed",
     "sync_plan_after_review_import",
     "sync_score_checkpoint_needed",
-    "sync_stale_dimensions",
+    "sync_subjective_dimensions",
     "sync_triage_needed",
-    "sync_unscored_dimensions",
 ]

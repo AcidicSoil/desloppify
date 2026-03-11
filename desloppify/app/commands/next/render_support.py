@@ -22,7 +22,7 @@ _ACTION_TYPE_LABELS = {
 _CLUSTER_NAME_LABELS = {
     "auto/initial-review": "Initial subjective review",
     "auto/stale-review": "Stale subjective review",
-    "auto/under-target-review": "Optional re-review",
+    "auto/under-target-review": "Below-target re-review",
 }
 
 

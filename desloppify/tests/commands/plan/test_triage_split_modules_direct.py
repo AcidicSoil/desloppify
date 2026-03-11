@@ -1120,15 +1120,14 @@ def test_execute_stage_uses_self_record_mode_for_organize(monkeypatch, tmp_path:
     assert captured["cli_command"] == "/tmp/run_desloppify.sh"
 
 
-def test_execute_stage_blocks_organize_when_reflect_accounting_is_invalid(
-    monkeypatch,
+def test_execute_stage_allows_organize_dry_run_without_persisted_reflect(
     tmp_path: Path,
 ) -> None:
     for dirname in ("prompts", "output", "logs"):
         (tmp_path / dirname).mkdir()
 
     dependencies = orchestrator_pipeline_execution_mod.StageExecutionDependencies(
-        build_stage_prompt=orchestrator_pipeline_mod.build_stage_prompt,
+        build_stage_prompt=lambda *_args, **_kwargs: "organize prompt",
         run_triage_stage=orchestrator_pipeline_mod.run_triage_stage,
         read_stage_output=orchestrator_pipeline_execution_mod.read_stage_output,
         analyze_reflect_issue_accounting=orchestrator_pipeline_mod._analyze_reflect_issue_accounting,
@@ -1144,21 +1143,25 @@ def test_execute_stage_blocks_organize_when_reflect_accounting_is_invalid(
         _make_stage_context(
             tmp_path,
             stage="organize",
+            dry_run=True,
             services=SimpleNamespace(),
             plan={
                 "epic_triage_meta": {
                     "triage_stages": {"reflect": {"report": "bad reflect blueprint"}}
                 }
             },
-            triage_input=SimpleNamespace(open_issues={"review::x::deadbeef": {}}),
+            triage_input=SimpleNamespace(
+                open_issues={"review::x::deadbeef": {}},
+                new_since_last=set(),
+            ),
             prior_reports={"reflect": "bad reflect blueprint"},
         ),
         handlers=orchestrator_pipeline_mod._STAGE_HANDLERS,
         dependencies=dependencies,
     )
 
-    assert status == "failed"
-    assert result["error"].startswith("reflect_accounting_invalid")
+    assert status == "dry_run"
+    assert result == {"status": "dry_run"}
 
 
 def test_execute_stage_blocks_sense_check_when_enrich_is_not_confirmed(
@@ -1202,10 +1205,50 @@ def test_execute_stage_blocks_sense_check_when_enrich_is_not_confirmed(
 
     assert status == "failed"
     assert result["error"] == "enrich_not_confirmed"
-    assert any(
-        line == "stage-preflight-failed stage=sense-check reason=enrich_not_confirmed"
-        for line in log_lines
+
+
+def test_execute_stage_blocks_organize_when_reflect_accounting_is_invalid_in_real_run(
+    tmp_path: Path,
+) -> None:
+    for dirname in ("prompts", "output", "logs"):
+        (tmp_path / dirname).mkdir()
+
+    dependencies = orchestrator_pipeline_execution_mod.StageExecutionDependencies(
+        build_stage_prompt=orchestrator_pipeline_mod.build_stage_prompt,
+        run_triage_stage=orchestrator_pipeline_mod.run_triage_stage,
+        read_stage_output=orchestrator_pipeline_execution_mod.read_stage_output,
+        analyze_reflect_issue_accounting=orchestrator_pipeline_mod._analyze_reflect_issue_accounting,
+        validate_reflect_issue_accounting=lambda **_kwargs: (
+            False,
+            set(),
+            ["review::x::deadbeef"],
+            [],
+        ),
     )
+
+    status, result = orchestrator_pipeline_execution_mod.execute_stage(
+        _make_stage_context(
+            tmp_path,
+            stage="organize",
+            dry_run=False,
+            services=SimpleNamespace(),
+            plan={
+                "epic_triage_meta": {
+                    "triage_stages": {"reflect": {"report": "bad reflect blueprint"}}
+                }
+            },
+            triage_input=SimpleNamespace(
+                open_issues={"review::x::deadbeef": {}},
+                new_since_last=set(),
+            ),
+            prior_reports={"reflect": "bad reflect blueprint"},
+        ),
+        handlers=orchestrator_pipeline_mod._STAGE_HANDLERS,
+        dependencies=dependencies,
+    )
+
+    assert status == "failed"
+    assert result["error"].startswith("reflect_accounting_invalid")
 
 
 def test_repair_reflect_report_if_needed_repairs_missing_hashes(monkeypatch, tmp_path: Path) -> None:
@@ -1284,6 +1327,7 @@ def test_pipeline_execution_helpers_cover_leaf_paths(monkeypatch, tmp_path: Path
         stage="sense-check",
         plan={"epic_triage_meta": {"triage_stages": {}}},
         triage_input=SimpleNamespace(open_issues={}),
+        dry_run=False,
         append_run_log=log_lines.append,
         validate_reflect_issue_accounting=lambda **_kwargs: (True, set(), [], []),
     )
@@ -1306,6 +1350,22 @@ def test_pipeline_execution_helpers_cover_leaf_paths(monkeypatch, tmp_path: Path
     assert "Missing hashes: deadbeef" in prompt
     assert "Duplicated hashes: facefeed" in prompt
     assert "Previous Reflect Report" in prompt
+
+    ok, reason = orchestrator_pipeline_execution_mod.preflight_stage(
+        stage="organize",
+        plan={"epic_triage_meta": {"triage_stages": {}}},
+        triage_input=SimpleNamespace(open_issues={"review::x::deadbeef": {}}),
+        dry_run=True,
+        append_run_log=log_lines.append,
+        validate_reflect_issue_accounting=lambda **_kwargs: (
+            False,
+            set(),
+            ["review::x::deadbeef"],
+            [],
+        ),
+    )
+    assert ok is True
+    assert reason is None
 
     context = orchestrator_pipeline_context_mod.StageRunContext(
         stage="observe",

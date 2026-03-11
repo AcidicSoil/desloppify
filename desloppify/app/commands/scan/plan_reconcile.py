@@ -27,9 +27,8 @@ from desloppify.engine.plan_queue import (
     save_plan,
     sync_communicate_score_needed,
     sync_create_plan_needed,
-    sync_stale_dimensions,
+    sync_subjective_dimensions,
     sync_triage_needed,
-    sync_unscored_dimensions,
 )
 from desloppify.engine.work_queue import build_deferred_disposition_item
 
@@ -92,8 +91,8 @@ def _apply_plan_reconciliation(plan: dict[str, object], state: state_mod.StateMo
     return bool(recon.changes)
 
 
-def _sync_unscored_dimensions(plan: dict[str, object], state: state_mod.StateModel, sync_fn) -> bool:
-    """Sync unscored subjective dimensions into the plan queue."""
+def _sync_subjective_dimensions_display(plan: dict[str, object], state: state_mod.StateModel, sync_fn) -> bool:
+    """Sync all subjective dimensions (unscored + stale + under-target) in plan queue."""
     sync = sync_fn(plan, state)
     if sync.resurfaced:
         print(
@@ -102,19 +101,6 @@ def _sync_unscored_dimensions(plan: dict[str, object], state: state_mod.StateMod
                 "yellow",
             )
         )
-    if sync.injected:
-        print(
-            colorize(
-                f"  Plan: {len(sync.injected)} unscored subjective dimension(s) queued for initial review.",
-                "cyan",
-            )
-        )
-    return bool(sync.changes)
-
-
-def _sync_stale_dimensions(plan: dict[str, object], state: state_mod.StateModel, sync_fn) -> bool:
-    """Sync stale subjective dimensions (prune refreshed + inject stale) in plan queue."""
-    sync = sync_fn(plan, state)
     if sync.pruned:
         print(
             colorize(
@@ -138,14 +124,12 @@ def _sync_auto_clusters(
     *,
     target_strict: float = DEFAULT_TARGET_STRICT_SCORE,
     policy=None,
-    cycle_just_completed: bool = False,
 ) -> bool:
     """Regenerate automatic task clusters after scan merge."""
     return bool(auto_cluster_issues(
         plan, state,
         target_strict=target_strict,
         policy=policy,
-        cycle_just_completed=cycle_just_completed,
     ))
 
 
@@ -256,27 +240,17 @@ def _subjective_policy_context(
     return target_strict, policy, cycle_just_completed
 
 
-def _sync_unscored_and_log(
-    plan: dict[str, object],
-    state: state_mod.StateModel,
-) -> bool:
-    changed = _sync_unscored_dimensions(plan, state, sync_unscored_dimensions)
-    if changed:
-        append_log_entry(plan, "sync_unscored", actor="system", detail={"changes": True})
-    return changed
-
-
-def _sync_stale_and_log(
+def _sync_subjective_and_log(
     plan: dict[str, object],
     state: state_mod.StateModel,
     *,
     policy,
     cycle_just_completed: bool,
 ) -> bool:
-    changed = _sync_stale_dimensions(
+    changed = _sync_subjective_dimensions_display(
         plan,
         state,
-        lambda p, s: sync_stale_dimensions(
+        lambda p, s: sync_subjective_dimensions(
             p,
             s,
             policy=policy,
@@ -284,7 +258,7 @@ def _sync_stale_and_log(
         ),
     )
     if changed:
-        append_log_entry(plan, "sync_stale", actor="system", detail={"changes": True})
+        append_log_entry(plan, "sync_subjective", actor="system", detail={"changes": True})
     return changed
 
 
@@ -294,14 +268,12 @@ def _sync_auto_clusters_and_log(
     *,
     target_strict: float,
     policy,
-    cycle_just_completed: bool,
 ) -> bool:
     changed = _sync_auto_clusters(
         plan,
         state,
         target_strict=target_strict,
         policy=policy,
-        cycle_just_completed=cycle_just_completed,
     )
     if changed:
         append_log_entry(plan, "auto_cluster", actor="system", detail={"changes": True})
@@ -422,12 +394,7 @@ def _sync_post_scan_without_policy(
     state: state_mod.StateModel,
 ) -> bool:
     """Run post-scan sync steps that do not require subjective policy context."""
-    dirty = False
-    if _apply_plan_reconciliation(plan, state, reconcile_plan_after_scan):
-        dirty = True
-    if _sync_unscored_and_log(plan, state):
-        dirty = True
-    return dirty
+    return bool(_apply_plan_reconciliation(plan, state, reconcile_plan_after_scan))
 
 
 def _is_mid_cycle_scan(plan: dict[str, object], state: state_mod.StateModel) -> bool:
@@ -468,7 +435,7 @@ def _sync_post_scan_with_policy(
     dirty = False
     mid_cycle = _is_mid_cycle_scan(plan, state) or force_rescan
 
-    if _sync_stale_and_log(
+    if _sync_subjective_and_log(
         plan,
         state,
         policy=policy,
@@ -481,7 +448,6 @@ def _sync_post_scan_with_policy(
             state,
             target_strict=target_strict,
             policy=policy,
-            cycle_just_completed=cycle_just_completed,
         ):
             dirty = True
     else:
@@ -524,8 +490,8 @@ def reconcile_plan_post_scan(runtime: ScanRuntime) -> None:
 
     dirty = _sync_post_scan_without_policy(plan=plan, state=runtime.state) or dirty
 
-    # Policy must be computed after the without-policy steps, which mutate
-    # plan (reconcile/prune) and state (unscored sync) before policy reads them.
+    # Policy must be computed after reconciliation, which mutates plan
+    # (supersede/prune resolved issues) before policy reads it.
     target_strict, policy, cycle_just_completed = _subjective_policy_context(
         runtime,
         plan,

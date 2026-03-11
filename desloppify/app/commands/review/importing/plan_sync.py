@@ -171,10 +171,12 @@ def sync_plan_after_import(
             # Assessment-bearing imports can change subjective queue semantics
             # even when they add no review findings. Keep queue_order aligned
             # first, then rebuild the derived auto-clusters from that queue.
-            stale_sync_result = plan_queue_mod.sync_stale_dimensions(
+            cycle_just_completed = not plan.get("plan_start_scores")
+            stale_sync_result = plan_queue_mod.sync_subjective_dimensions(
                 plan,
                 state,
                 policy=policy,
+                cycle_just_completed=cycle_just_completed,
             )
             if stale_sync_result.changes:
                 dirty = True

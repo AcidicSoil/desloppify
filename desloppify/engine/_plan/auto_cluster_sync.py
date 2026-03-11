@@ -1,16 +1,15 @@
-"""Internal sync helpers for auto-cluster regeneration."""
+"""Internal sync helpers for auto-cluster regeneration.
+
+Creates and updates auto-clusters from current queue state.  Does NOT
+manage queue membership — ``sync_subjective_dimensions`` is the sole authority
+on which subjective IDs belong in ``queue_order``.
+"""
 
 from __future__ import annotations
 
 from desloppify.engine._plan.policy import stale as stale_policy_mod
 from desloppify.engine._plan.sync.context import (
     has_objective_backlog as _has_objective_backlog,
-)
-from desloppify.engine._plan.sync.defer_policy import (
-    DeferEscalationOptions,
-    DeferUpdateOptions,
-    should_escalate_defer_state,
-    update_defer_state,
 )
 from desloppify.engine._plan.auto_cluster_sync_issue import (
     _sync_auto_cluster,
@@ -33,9 +32,6 @@ _UNSCORED_NAME = "auto/initial-review"
 _UNDER_TARGET_KEY = "subjective::under-target"
 _UNDER_TARGET_NAME = "auto/under-target-review"
 _MIN_UNSCORED_CLUSTER_SIZE = 1
-_SUBJECTIVE_DEFER_META_KEY = "subjective_defer_meta"
-_SUBJECTIVE_DEFER_IDS_FIELD = "deferred_review_ids"
-_SUBJECTIVE_FORCE_IDS_KEY = "force_visible_ids"
 
 
 def _subjective_state_sets(
@@ -70,49 +66,6 @@ def _skipped_subjective_ids(plan: dict) -> set[str]:
     }
 
 
-def _clear_subjective_defer_meta(plan: dict) -> None:
-    plan.pop(_SUBJECTIVE_DEFER_META_KEY, None)
-
-
-def _promote_subjective_ids(order: list[str], ids: list[str]) -> int:
-    """Move subjective IDs ahead of objective backlog while preserving order."""
-    target_ids: list[str] = []
-    seen: set[str] = set()
-    for fid in ids:
-        sid = str(fid).strip()
-        if not sid or sid in seen:
-            continue
-        target_ids.append(sid)
-        seen.add(sid)
-    if not target_ids:
-        return 0
-
-    insert_at = 0
-    while insert_at < len(order):
-        current = str(order[insert_at])
-        if not (
-            current.startswith("workflow::") or current.startswith("triage::")
-        ):
-            break
-        insert_at += 1
-
-    changes = 0
-    for sid in target_ids:
-        existing_idx = order.index(sid) if sid in order else None
-        target_idx = min(insert_at, len(order))
-        if existing_idx is not None:
-            if existing_idx == target_idx:
-                insert_at += 1
-                continue
-            order.pop(existing_idx)
-            if existing_idx < target_idx:
-                target_idx -= 1
-        order.insert(target_idx, sid)
-        insert_at = target_idx + 1
-        changes += 1
-    return changes
-
-
 def sync_subjective_clusters(
     plan: dict,
     state: StateModel,
@@ -124,17 +77,15 @@ def sync_subjective_clusters(
     *,
     target_strict: float,
     policy: SubjectiveVisibility | None = None,
-    cycle_just_completed: bool = False,
 ) -> int:
-    """Sync unscored, stale, and under-target subjective dimension clusters."""
+    """Sync unscored, stale, and under-target subjective dimension clusters.
+
+    Creates/updates cluster groupings from IDs currently in the queue.
+    Does NOT inject or evict IDs — that is sync_stale's responsibility.
+    """
     changes = 0
     skipped_subjective_ids = _skipped_subjective_ids(plan)
     order = plan.get("queue_order", [])
-    if skipped_subjective_ids and isinstance(order, list):
-        overlap = [fid for fid in order if fid in skipped_subjective_ids]
-        for fid in overlap:
-            order.remove(fid)
-            changes += 1
 
     all_subjective_ids = sorted(
         fid
@@ -196,28 +147,6 @@ def sync_subjective_clusters(
     under_target_queue_ids = sorted(
         fid for fid in under_target_ids if fid not in skipped_subjective_ids
     )
-    stale_candidate_ids = sorted(
-        fid
-        for fid in stale_state_ids
-        if fid not in unscored_state_ids and fid not in skipped_subjective_ids
-    )
-    deferred_subjective_ids = sorted(
-        set(stale_candidate_ids) | set(under_target_queue_ids)
-    )
-
-    prev_ut_cluster = clusters.get(_UNDER_TARGET_NAME, {})
-    prev_ut_ids = set(prev_ut_cluster.get("issue_ids", []))
-    ut_prune = [
-        fid
-        for fid in prev_ut_ids
-        if fid not in under_target_ids
-        and fid not in stale_state_ids
-        and fid not in unscored_state_ids
-        and fid in order
-    ]
-    for fid in ut_prune:
-        order.remove(fid)
-        changes += 1
 
     has_objective_items = _has_objective_backlog(issues, policy)
 
@@ -242,50 +171,6 @@ def sync_subjective_clusters(
             optional=True,
         )
         changes += int(sync_result.changed)
-
-        existing_order = set(order)
-        for fid in under_target_queue_ids:
-            if fid not in existing_order:
-                order.append(fid)
-
-    if has_objective_items and not cycle_just_completed:
-        if deferred_subjective_ids:
-            defer_state = update_defer_state(
-                plan.get(_SUBJECTIVE_DEFER_META_KEY),
-                state=state,
-                deferred_ids=set(deferred_subjective_ids),
-                options=DeferUpdateOptions(
-                    deferred_ids_field=_SUBJECTIVE_DEFER_IDS_FIELD,
-                    now=now,
-                ),
-            )
-            escalated = should_escalate_defer_state(
-                defer_state,
-                state=state,
-                options=DeferEscalationOptions(
-                    deferred_ids_field=_SUBJECTIVE_DEFER_IDS_FIELD,
-                    now=now,
-                ),
-            )
-            if escalated:
-                defer_state[_SUBJECTIVE_FORCE_IDS_KEY] = list(deferred_subjective_ids)
-                plan[_SUBJECTIVE_DEFER_META_KEY] = defer_state
-                changes += _promote_subjective_ids(order, deferred_subjective_ids)
-            else:
-                defer_state.pop(_SUBJECTIVE_FORCE_IDS_KEY, None)
-                plan[_SUBJECTIVE_DEFER_META_KEY] = defer_state
-                objective_evict = [
-                    fid
-                    for fid in order
-                    if fid in under_target_ids or fid in stale_state_ids
-                ]
-                for fid in objective_evict:
-                    order.remove(fid)
-                    changes += 1
-        else:
-            _clear_subjective_defer_meta(plan)
-    else:
-        _clear_subjective_defer_meta(plan)
 
     return changes
 
