@@ -13,12 +13,12 @@ from desloppify.base.discovery.file_paths import safe_write_text
 from desloppify.base.output.terminal import colorize
 
 from ..services import TriageServices
-from ..validation.core import (
-    _analyze_reflect_issue_accounting,
-    _missing_stage_prerequisite,
-    _validate_reflect_issue_accounting,
-    validate_organize_against_reflect_ledger,
+from ..validation.core import validate_organize_against_reflect_ledger
+from ..validation.reflect_accounting import (
+    analyze_reflect_issue_accounting,
+    validate_reflect_accounting,
 )
+from ..validation.stage_policy import missing_stage_prerequisite
 from .codex_runner import TriageStageRunResult, run_triage_stage
 from .orchestrator_codex_observe import run_observe
 from .orchestrator_codex_pipeline_context import StageRunContext
@@ -162,8 +162,8 @@ def default_stage_execution_dependencies() -> StageExecutionDependencies:
         build_stage_prompt=build_stage_prompt,
         run_triage_stage=run_triage_stage,
         read_stage_output=read_stage_output,
-        analyze_reflect_issue_accounting=_analyze_reflect_issue_accounting,
-        validate_reflect_issue_accounting=_validate_reflect_issue_accounting,
+        analyze_reflect_issue_accounting=analyze_reflect_issue_accounting,
+        validate_reflect_issue_accounting=validate_reflect_accounting,
     )
 
 
@@ -197,7 +197,7 @@ def preflight_stage(
 
     if stage == "sense-check":
         stages = plan.get("epic_triage_meta", {}).get("triage_stages", {})
-        if _missing_stage_prerequisite(stages, flow="sense-check") is None:
+        if missing_stage_prerequisite(stages, flow="sense-check") is None:
             return True, None
         reason = "enrich_not_confirmed"
         append_run_log(f"stage-preflight-failed stage={stage} reason={reason}")

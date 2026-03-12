@@ -8,6 +8,7 @@ from pathlib import Path
 from desloppify.base.output.terminal import colorize
 
 from ..helpers import cluster_issue_ids
+from .stage_policy import require_prerequisite
 
 _PATH_RE = re.compile(r"(?:[\w./-]+/)?(?:src|supabase)/[\w./-]+\.\w+(?::\d+(?:[-:]\d+)?)?")
 _LINE_SUFFIX_RE = re.compile(r":\d+(?:[-:]\d+)?$")
@@ -56,9 +57,7 @@ def _path_exists_or_alt_exists(repo_root: Path, path_str: str) -> bool:
 
 def _require_organize_stage_for_enrich(stages: dict) -> bool:
     """Gate: organize must be done before enrich."""
-    from .core import require_stage_prerequisite  # noqa: PLC0415
-
-    return require_stage_prerequisite(
+    return require_prerequisite(
         stages,
         flow="enrich",
         messages={

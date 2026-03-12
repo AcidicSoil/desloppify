@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import argparse
 import logging
-import sys
 from pathlib import Path
 from typing import NamedTuple
 
 from desloppify.base.exception_sets import PLAN_LOAD_EXCEPTIONS
 from desloppify.base.output.terminal import colorize
+from desloppify.app.commands.resolve.plan_load import warn_plan_load_degraded_once
 from desloppify.engine.plan_ops import (
     append_log_entry,
     auto_complete_steps,
@@ -99,9 +99,13 @@ def update_living_plan_after_resolve(
         save_plan(plan, plan_path)
         if purged:
             print(colorize(f"  Plan updated: {purged} item(s) removed from queue.", "dim"))
-    except PLAN_LOAD_EXCEPTIONS:
+    except PLAN_LOAD_EXCEPTIONS as exc:
         _logger.debug("plan update failed after resolve", exc_info=True)
-        print(colorize("  Warning: could not update living plan.", "yellow"), file=sys.stderr)
+        warn_plan_load_degraded_once(
+            command_label="resolve",
+            error_kind=exc.__class__.__name__,
+            behavior="Living-plan queue metadata could not be updated after resolve.",
+        )
     return plan, ctx
 
 

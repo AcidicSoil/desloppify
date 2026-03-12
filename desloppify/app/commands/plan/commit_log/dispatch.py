@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import argparse
 import sys
+from types import SimpleNamespace
 
-from desloppify import state as state_mod
 from desloppify.engine.plan_state import (
     commit_tracking_summary,
     filter_issue_ids_by_pattern,
@@ -19,6 +19,9 @@ from desloppify.engine.plan_ops import append_log_entry
 from desloppify.base.config import load_config
 from desloppify.base.git_context import detect_git_context, update_pr_body
 from desloppify.base.output.terminal import colorize
+from desloppify.state_io import load_state
+
+state_mod = SimpleNamespace(load_state=load_state)
 
 
 def _cmd_commit_log_status(plan: dict) -> None:

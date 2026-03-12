@@ -8,6 +8,11 @@ from desloppify.engine.plan_triage import TRIAGE_CMD_ORGANIZE
 from .enrich_checks import _underspecified_steps
 from ..helpers import manual_clusters_with_issues
 from ..stages.helpers import unenriched_clusters
+from .stage_policy import (
+    AutoConfirmStageRequest,
+    confirm_stage,
+    missing_stage_prerequisite,
+)
 
 
 _COMPLETE_AUTO_CONFIRM_STAGE_CONFIG = {
@@ -44,14 +49,12 @@ def _auto_confirm_stage_for_complete(
     attestation: str | None,
     save_plan_fn=None,
 ) -> bool:
-    from .core import AutoConfirmStageRequest, _auto_confirm_stage  # noqa: PLC0415
-
     stage_record = stages.get(stage)
     if stage_record is None:
         return False
 
     config = _COMPLETE_AUTO_CONFIRM_STAGE_CONFIG[stage]
-    return _auto_confirm_stage(
+    return confirm_stage(
         plan=plan,
         stage_record=stage_record,
         attestation=attestation,
@@ -74,9 +77,7 @@ def _require_enrich_stage_for_complete(
     stages: dict,
     underspec: list[tuple[str, int, int]] | None = None,
 ) -> bool:
-    from .core import _missing_stage_prerequisite  # noqa: PLC0415
-
-    missing = _missing_stage_prerequisite(stages, flow="complete:enrich")
+    missing = missing_stage_prerequisite(stages, flow="complete:enrich")
     if missing is None:
         return True
     if missing.stage_name != "enrich":
@@ -134,9 +135,7 @@ def _require_sense_check_stage_for_complete(
     meta: dict,
     stages: dict,
 ) -> bool:
-    from .core import _missing_stage_prerequisite  # noqa: PLC0415
-
-    missing = _missing_stage_prerequisite(stages, flow="complete:sense-check")
+    missing = missing_stage_prerequisite(stages, flow="complete:sense-check")
     if missing is None:
         return True
     if missing.stage_name != "sense-check":
@@ -153,9 +152,7 @@ def _require_organize_stage_for_complete(
     meta: dict,
     stages: dict,
 ) -> bool:
-    from .core import _missing_stage_prerequisite  # noqa: PLC0415
-
-    missing = _missing_stage_prerequisite(stages, flow="complete:organize")
+    missing = missing_stage_prerequisite(stages, flow="complete:organize")
     if missing is None:
         return True
     if missing.stage_name == "observe":

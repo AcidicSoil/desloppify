@@ -329,7 +329,7 @@ def test_display_layout_renderers(monkeypatch, capsys) -> None:
                 "detail": {"dimension": "naming", "suggestion": "rename value"},
             }
         },
-        existing_epics=[],
+        existing_clusters=[],
         new_since_last={"review::src/a.py::id1"},
         resolved_since_last=set(),
     )

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+from types import SimpleNamespace
 
-from desloppify import state as state_mod
 from desloppify.app.commands.helpers.runtime import command_runtime
 from desloppify.app.commands.helpers.state import require_issue_inventory, state_path
 from desloppify.app.commands.plan.shared.patterns import resolve_ids_from_patterns
@@ -27,6 +27,10 @@ from desloppify.engine.plan_ops import (
     set_focus,
 )
 from desloppify.engine._plan.refresh_lifecycle import clear_postflight_scan_completion
+from desloppify.engine._state.resolution import resolve_issues
+from desloppify.state_io import load_state
+
+state_mod = SimpleNamespace(load_state=load_state)
 
 
 def cmd_plan_describe(args: argparse.Namespace) -> None:
@@ -90,7 +94,7 @@ def cmd_plan_reopen(args: argparse.Namespace) -> None:
 
     reopened: list[str] = []
     for pattern in patterns:
-        reopened.extend(state_mod.resolve_issues(state_data, pattern, "open"))
+        reopened.extend(resolve_issues(state_data, pattern, "open"))
 
     if not reopened:
         print(colorize("  No resolved issues matching: " + " ".join(patterns), "yellow"))

@@ -22,9 +22,9 @@ from desloppify.base.output.terminal import colorize
 from ..helpers import has_triage_in_queue, inject_triage_stages
 from ..lifecycle import TriageLifecycleDeps, ensure_triage_started
 from ..services import TriageServices, default_triage_services
-from ..validation.core import (
-    _analyze_reflect_issue_accounting,
-    _validate_reflect_issue_accounting,
+from ..validation.reflect_accounting import (
+    analyze_reflect_issue_accounting,
+    validate_reflect_accounting,
 )
 from .codex_runner import run_triage_stage
 from .orchestrator_codex_pipeline_completion import (
@@ -51,6 +51,8 @@ from .orchestrator_codex_pipeline_execution import (
 from .orchestrator_common import STAGES, run_stamp
 from .stage_prompts import build_stage_prompt
 _STAGE_HANDLERS: dict[str, StageHandler] = DEFAULT_STAGE_HANDLERS
+_analyze_reflect_issue_accounting = analyze_reflect_issue_accounting
+_validate_reflect_issue_accounting = validate_reflect_accounting
 
 
 @dataclass(frozen=True)
@@ -108,8 +110,8 @@ def _stage_execution_dependencies() -> StageExecutionDependencies:
         build_stage_prompt=build_stage_prompt,
         run_triage_stage=run_triage_stage,
         read_stage_output=read_stage_output_impl,
-        analyze_reflect_issue_accounting=_analyze_reflect_issue_accounting,
-        validate_reflect_issue_accounting=_validate_reflect_issue_accounting,
+        analyze_reflect_issue_accounting=analyze_reflect_issue_accounting,
+        validate_reflect_issue_accounting=validate_reflect_accounting,
     )
 
 

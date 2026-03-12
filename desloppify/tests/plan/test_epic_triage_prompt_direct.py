@@ -28,7 +28,7 @@ def test_build_triage_prompt_includes_completed_clusters_and_resolved_issue_cont
     triage_input = TriageInput(
         open_issues={open_id: open_issue},
         mechanical_issues={},
-        existing_epics={},
+        existing_clusters={},
         dimension_scores={},
         new_since_last={open_id},
         resolved_since_last={resolved_id},
@@ -72,7 +72,7 @@ def test_build_triage_prompt_renders_recurring_dimension_summary() -> None:
     triage_input = TriageInput(
         open_issues={open_id: open_issue},
         mechanical_issues={},
-        existing_epics={},
+        existing_clusters={},
         dimension_scores={},
         new_since_last=set(),
         resolved_since_last={resolved_same_id, resolved_other_id},

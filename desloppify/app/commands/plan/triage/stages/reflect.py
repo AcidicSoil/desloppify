@@ -12,11 +12,11 @@ from ..helpers import cascade_clear_later_confirmations, has_triage_in_queue
 from ..services import TriageServices, default_triage_services
 from ..validation.core import (
     ReflectDisposition,
-    _auto_confirm_observe_if_attested,
     _validate_recurring_dimension_mentions,
-    _validate_reflect_issue_accounting,
     parse_reflect_dispositions,
 )
+from ..validation.reflect_accounting import validate_reflect_accounting
+from ..validation.stage_policy import auto_confirm_observe_if_attested
 from .flow_helpers import validate_stage_report_length
 from .records import resolve_reusable_report
 from .rendering import _print_reflect_report_requirement
@@ -37,7 +37,7 @@ def _validate_reflect_submission(
         return None
 
     triage_input = services.collect_triage_input(plan, state)
-    if not _auto_confirm_observe_if_attested(
+    if not auto_confirm_observe_if_attested(
         plan=plan,
         stages=stages,
         attestation=attestation,
@@ -67,7 +67,7 @@ def _validate_reflect_submission(
         return None
 
     valid_ids = set(triage_input.open_issues.keys())
-    accounting_ok, cited_ids, missing_ids, duplicate_ids = _validate_reflect_issue_accounting(
+    accounting_ok, cited_ids, missing_ids, duplicate_ids = validate_reflect_accounting(
         report=report,
         valid_ids=valid_ids,
     )

@@ -34,13 +34,11 @@ from ..assessment_integrity import (
     subjective_at_target_dimensions,
 )
 from .flags import (
-    ImportFlagValidationError,
     ReviewImportConfig,
     build_import_load_config,
     clear_provisional_override_flags,
     imported_assessment_keys,
     mark_manual_override_assessments_provisional,
-    validate_import_flag_combos,
 )
 from .output import (
     print_assessment_mode_banner,
@@ -73,16 +71,6 @@ def _resolve_import_payload(
         manual_override=import_config.manual_override,
         manual_attest=import_config.manual_attest,
     )
-    try:
-        validate_import_flag_combos(
-            attested_external=import_config.attested_external,
-            allow_partial=import_config.allow_partial,
-            override_enabled=override_enabled,
-            override_attest=override_attest,
-        )
-    except ImportFlagValidationError as exc:
-        raise CommandError(str(exc), exit_code=1) from exc
-
     try:
         issues_data = load_import_issues_data(
             import_file,
@@ -390,16 +378,6 @@ def do_validate_import(
         manual_attest=resolved_import_config.manual_attest,
     )
     try:
-        validate_import_flag_combos(
-            attested_external=resolved_import_config.attested_external,
-            allow_partial=resolved_import_config.allow_partial,
-            override_enabled=override_enabled,
-            override_attest=override_attest,
-        )
-    except ImportFlagValidationError as exc:
-        raise CommandError(str(exc), exit_code=1) from exc
-
-    try:
         issues_data = load_import_issues_data(
             import_file,
             config=build_import_load_config(
@@ -440,7 +418,6 @@ def do_validate_import(
 
 
 __all__ = [
-    "ImportFlagValidationError",
     "ReviewImportConfig",
     "do_import",
     "do_validate_import",

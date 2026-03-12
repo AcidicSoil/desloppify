@@ -13,6 +13,7 @@ from desloppify.engine._work_queue.context import resolve_plan_load_status
 class DegradedPlanWarning:
     """Structured degraded-mode warning payload for resolve flows."""
 
+    command_label: str
     error_kind: str | None
     message: str
     behavior: str
@@ -34,10 +35,11 @@ class ResolvePlanAccess:
     error_kind: str | None
     warning_state: DegradedPlanWarningState
 
-    def usable_plan(self, *, behavior: str) -> dict | None:
+    def usable_plan(self, *, behavior: str, command_label: str = "resolve") -> dict | None:
         """Return the loaded plan, warning once when resolve falls back."""
         if self.degraded:
             warn_plan_load_degraded_once(
+                command_label=command_label,
                 error_kind=self.error_kind,
                 behavior=behavior,
                 warning_state=self.warning_state,
@@ -63,6 +65,7 @@ def load_resolve_plan_access(
 
 def warn_plan_load_degraded_once(
     *,
+    command_label: str = "resolve",
     error_kind: str | None,
     behavior: str,
     warning_state: DegradedPlanWarningState | None = None,
@@ -80,10 +83,11 @@ def warn_plan_load_degraded_once(
 
     detail = f" ({error_kind})" if error_kind else ""
     message = (
-        "Warning: resolve is running in degraded mode because the living "
+        f"Warning: {command_label} is running in degraded mode because the living "
         f"plan could not be loaded{detail}."
     )
     warning = DegradedPlanWarning(
+        command_label=command_label,
         error_kind=error_kind,
         message=message,
         behavior=behavior,

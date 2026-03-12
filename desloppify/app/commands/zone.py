@@ -14,6 +14,7 @@ from desloppify.base.discovery.file_paths import rel
 from desloppify.base.exception_sets import CommandError
 from desloppify.base.output.terminal import colorize
 from desloppify.engine.policy.zones import FileZoneMap, Zone
+from desloppify.state_io import load_state, save_state
 
 
 def cmd_zone(args: argparse.Namespace) -> None:
@@ -100,11 +101,9 @@ def _zone_set(args: argparse.Namespace):
 
     # Apply immediately to state
     try:
-        from desloppify import state as state_mod
-
         sp = state_path(args)
         if sp.exists():
-            state = state_mod.load_state(sp)
+            state = load_state(sp)
             issues = state.get("issues", {})
             updated = 0
             for issue in issues.values():
@@ -112,7 +111,7 @@ def _zone_set(args: argparse.Namespace):
                     issue["zone"] = zone_value
                     updated += 1
             if updated:
-                state_mod.save_state(state, sp)
+                save_state(state, sp)
             print(f"  Applied to {updated} issue(s).")
     except (ImportError, OSError, TypeError, ValueError):
         print(colorize("  (Will apply on next scan.)", "dim"))
@@ -136,11 +135,9 @@ def _zone_clear(args: argparse.Namespace):
 
         # Re-stamp matching issues to default zone; next scan will reclassify.
         try:
-            from desloppify import state as state_mod
-
             sp = state_path(args)
             if sp.exists():
-                state = state_mod.load_state(sp)
+                state = load_state(sp)
                 issues = state.get("issues", {})
                 updated = 0
                 for issue in issues.values():
@@ -148,7 +145,7 @@ def _zone_clear(args: argparse.Namespace):
                         issue["zone"] = "production"
                         updated += 1
                 if updated:
-                    state_mod.save_state(state, sp)
+                    save_state(state, sp)
                 print(f"  Re-stamped {updated} issue(s) to 'production' (will reclassify on next scan).")
         except (ImportError, OSError, TypeError, ValueError):
             print(colorize("  (Will apply on next scan.)", "dim"))

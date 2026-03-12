@@ -57,7 +57,7 @@ def print_dashboard_header(si: object, stages: dict, meta: dict, plan: dict) -> 
     print(colorize(f"    Codex:  {TRIAGE_CMD_RUN_STAGES_CODEX}", "dim"))
     print(colorize(f"    Claude: {TRIAGE_CMD_RUN_STAGES_CLAUDE}", "dim"))
     print(colorize("  Manual stage commands below are fallback/debug paths.", "dim"))
-    existing_clusters = getattr(si, "existing_clusters", getattr(si, "existing_epics", {}))
+    existing_clusters = si.existing_clusters
     if existing_clusters:
         print(f"  Existing clusters: {len(existing_clusters)}")
     if si.new_since_last:

@@ -60,7 +60,7 @@ def _stub_si(*, new_since_last=None, resolved_since_last=None, **kwargs):
         new_since_last=new_since_last or set(),
         resolved_since_last=resolved_since_last or {},
         open_issues=kwargs.get("open_issues", {}),
-        existing_epics=[],
+        existing_clusters=[],
     )
 
 

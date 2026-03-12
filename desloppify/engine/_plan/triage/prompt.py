@@ -20,7 +20,7 @@ class TriageInput:
 
     open_issues: dict[str, dict]       # id -> issue (review + concerns)
     mechanical_issues: dict[str, dict]  # id -> issue (non-review, for context)
-    existing_epics: dict[str, Cluster]    # compatibility alias; values are clusters
+    existing_clusters: dict[str, Cluster]
     dimension_scores: dict[str, Any]      # for context
     new_since_last: set[str]             # issue IDs new since last triage
     resolved_since_last: set[str]        # issue IDs resolved since last
@@ -30,9 +30,9 @@ class TriageInput:
     completed_clusters: list[dict]       # clusters completed since last triage
 
     @property
-    def existing_clusters(self) -> dict[str, Cluster]:
-        """Canonical cluster view used by staged triage docs."""
-        return self.existing_epics
+    def existing_epics(self) -> dict[str, Cluster]:
+        """Compatibility alias kept for older callers and fixtures."""
+        return self.existing_clusters
 
 @dataclass
 class DismissedIssue:
@@ -141,7 +141,7 @@ def collect_triage_input(plan: PlanModel, state: StateModel) -> TriageInput:
     return TriageInput(
         open_issues=open_review,
         mechanical_issues=open_mechanical,
-        existing_epics=dict(epics),
+        existing_clusters=dict(epics),
         dimension_scores=state.get("dimension_scores", {}),
         new_since_last=new_since,
         resolved_since_last=resolved_since,

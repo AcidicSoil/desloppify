@@ -13,9 +13,11 @@ from ..helpers import (
     open_review_ids_from_state,
 )
 from ..services import TriageServices, default_triage_services
-from ..validation.core import (
+from ..validation.stage_policy import (
     ReflectAutoConfirmDeps,
-    _auto_confirm_reflect_for_organize,
+    auto_confirm_reflect_for_organize,
+)
+from ..validation.core import (
     _clusters_enriched_or_error,
     _manual_clusters_or_error,
     _organize_report_or_error,
@@ -94,7 +96,7 @@ def _validate_organize_submission(
 ) -> tuple[list[str], str] | None:
     open_review_ids = open_review_ids_from_state(state)
     triage_input = services.collect_triage_input(plan, state)
-    if not _auto_confirm_reflect_for_organize(
+    if not auto_confirm_reflect_for_organize(
         args=args,
         plan=plan,
         stages=stages,

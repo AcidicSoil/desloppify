@@ -6,6 +6,7 @@ import argparse
 from collections.abc import Callable
 from pathlib import Path
 
+from desloppify.base.exception_sets import CommandError
 from desloppify.base.output.terminal import colorize
 from desloppify.engine.plan_triage import TRIAGE_CMD_OBSERVE
 
@@ -93,8 +94,7 @@ def _run_staged_runner(
     try:
         stages_to_run = parse_only_stages(getattr(args, "only_stages", None))
     except ValueError as exc:
-        print(colorize(f"  {exc}", "red"))
-        return
+        raise CommandError(str(exc), exit_code=1) from exc
     if runner == "claude":
         run_claude_orchestrator(args, services=services)
         return
@@ -105,7 +105,10 @@ def _run_staged_runner(
             services=services,
         )
         return
-    print(colorize(f"  Unknown runner: {runner}. Use 'codex' or 'claude'.", "red"))
+    raise CommandError(
+        f"Unknown runner: {runner}. Use 'codex' or 'claude'.",
+        exit_code=1,
+    )
 
 
 def _run_dry_run(
@@ -116,7 +119,7 @@ def _run_dry_run(
     plan = services.load_plan()
     si = services.collect_triage_input(plan, state)
     prompt = services.build_triage_prompt(si)
-    existing_clusters = getattr(si, "existing_clusters", getattr(si, "existing_epics", {}))
+    existing_clusters = si.existing_clusters
     print(colorize("  Cluster triage - dry run", "bold"))
     print(colorize("  " + "─" * 60, "dim"))
     print(f"  Open review issues: {len(si.open_issues)}")
@@ -129,16 +132,14 @@ def _run_dry_run(
 
 
 def _read_report_file(report_file: str) -> str:
-    """Read report text from a file path, raising SystemExit on failure."""
+    """Read report text from a file path or raise ``CommandError``."""
     path = Path(report_file)
     if not path.is_file():
-        print(colorize(f"  --report-file not found: {report_file}", "red"))
-        raise SystemExit(1)
+        raise CommandError(f"--report-file not found: {report_file}", exit_code=1)
     try:
         return path.read_text(encoding="utf-8")
     except OSError as exc:
-        print(colorize(f"  Cannot read --report-file: {exc}", "red"))
-        raise SystemExit(1) from exc
+        raise CommandError(f"Cannot read --report-file: {exc}", exit_code=1) from exc
 
 
 def run_triage_workflow(

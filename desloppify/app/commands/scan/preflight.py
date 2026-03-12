@@ -14,6 +14,7 @@ from desloppify.app.commands.helpers.queue_progress import get_plan_start_strict
 from desloppify.app.commands.helpers.state import state_path
 from desloppify.base.exception_sets import CommandError
 from desloppify.base.output.terminal import colorize
+from desloppify.app.commands.resolve.plan_load import warn_plan_load_degraded_once
 from desloppify.engine._work_queue.context import resolve_plan_load_status
 
 _logger = logging.getLogger(__name__)
@@ -51,6 +52,11 @@ def scan_queue_preflight(args: object) -> None:
         _logger.debug(
             "scan preflight plan load degraded: %s",
             plan_status.error_kind,
+        )
+        warn_plan_load_degraded_once(
+            command_label="scan preflight",
+            error_kind=plan_status.error_kind,
+            behavior="Queue gating is disabled until the living plan can be loaded again.",
         )
         return
     plan = plan_status.plan
