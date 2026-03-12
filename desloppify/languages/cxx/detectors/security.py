@@ -31,6 +31,8 @@ _CXX_SUFFIXES = _SOURCE_SUFFIXES | _HEADER_SUFFIXES
 _UNSAFE_C_STRING_APIS = ("strcpy", "strcat", "sprintf", "vsprintf", "gets", "scanf", "sscanf", "fscanf")
 _PROJECT_MARKERS = ("compile_commands.json", "CMakeLists.txt", "Makefile")
 _TOOL_PRIORITY = {"clang-tidy": 0, "cppcheck": 1, "regex": 2}
+_CLANG_TIDY_BATCH_SIZE = 10
+_CPPCHECK_BATCH_SIZE = 25
 
 _COMMAND_INJECTION_RE = re.compile(r"\b(?:std::)?system\s*\(")
 _UNSAFE_C_STRING_RE = re.compile(
@@ -237,46 +239,24 @@ def _parse_cppcheck_output(output: str, scan_path: Path) -> list[dict]:
 
 
 def _normalize_kind(check_id: str, message: str) -> str | None:
-    text = f"{check_id} {message}".lower()
+    check = check_id.lower().strip()
+    msg = message.lower().strip()
+    text = f"{check} {msg}"
 
-    if "system" in text or "cert-env33-c" in text:
+    if check in {"dangerousfunctionsystem", "cert-env33-c"} or re.search(
+        r"\bsystem\b", msg
+    ):
         return "command_injection"
 
-    if any(
-        token in text
-        for token in (
-            "strcpy",
-            "strcat",
-            "sprintf",
-            "vsprintf",
-            "gets",
-            "scanf",
-            "sscanf",
-            "fscanf",
-            "unsafebufferhandling",
-            "dangerousfunction",
-        )
-    ):
-        if any(
-            token in text
-            for token in (
-                "strcpy",
-                "strcat",
-                "sprintf",
-                "vsprintf",
-                "gets",
-                "scanf",
-                "sscanf",
-                "fscanf",
-                "buffer",
-            )
-        ):
-            return "unsafe_c_string"
+    if any(api in text for api in _UNSAFE_C_STRING_APIS):
+        return "unsafe_c_string"
+    if "unsafebufferhandling" in check or re.search(r"\bbuffer\b", msg):
+        return "unsafe_c_string"
 
-    if "rand" in text or "cert-msc30" in text:
+    if check == "cert-msc30-c" or re.search(r"\brand\b", msg):
         return "insecure_random"
 
-    if any(token in text for token in ("md5", "sha1", "sha-1")):
+    if re.search(r"\bmd5\b|\bsha-?1\b", text):
         return "weak_crypto_hash"
 
     return None
@@ -424,6 +404,53 @@ def _tool_result_state(result: ToolRunResult) -> ToolState:
     return "error"
 
 
+def _run_clang_tidy_invocation(
+    scan_root: Path, source_files: list[str]
+ ) -> CxxToolScanResult:
+    file_args = _relative_tool_args(source_files, scan_root)
+    result = run_tool_result(
+        f"clang-tidy -p . --quiet -checks=-*,clang-analyzer-security*,cert-* {file_args}",
+        scan_root,
+        _parse_clang_tidy_output,
+    )
+    state = _tool_result_state(result)
+    return CxxToolScanResult(
+        tool="clang-tidy",
+        state=state,
+        entries=_normalize_tool_entries(result.entries),
+        detail=result.message or result.error_kind or "",
+        covered_files=tuple(source_files) if state in {"ok", "empty"} else (),
+    )
+
+
+def _merge_tool_scan_results(tool: str, results: list[CxxToolScanResult]) -> CxxToolScanResult:
+    successful = [result for result in results if result.is_success()]
+    if successful:
+        entries = [entry for result in successful for entry in result.entries]
+        covered_files = tuple(
+            filepath for result in successful for filepath in result.covered_files
+        )
+        detail = next((
+            result.detail for result in results if not result.is_success() and result.detail
+        ), "")
+        return CxxToolScanResult(
+            tool=tool,
+            state="ok" if entries else "empty",
+            entries=entries,
+            detail=detail,
+            covered_files=covered_files,
+        )
+
+    first_failure = next((result for result in results if result.detail), results[0])
+    return CxxToolScanResult(
+        tool=tool,
+        state=first_failure.state,
+        entries=[],
+        detail=first_failure.detail,
+        covered_files=(),
+    )
+
+
 def _run_clang_tidy(scan_root: Path, files: list[str]) -> CxxToolScanResult:
     if shutil.which("clang-tidy") is None:
         return CxxToolScanResult(tool="clang-tidy", state="missing_tool", entries=[])
@@ -434,18 +461,37 @@ def _run_clang_tidy(scan_root: Path, files: list[str]) -> CxxToolScanResult:
     if not source_files:
         return CxxToolScanResult(tool="clang-tidy", state="empty", entries=[])
 
-    file_args = _relative_tool_args(source_files, scan_root)
+    results: list[CxxToolScanResult] = []
+    for idx in range(0, len(source_files), _CLANG_TIDY_BATCH_SIZE):
+        batch = source_files[idx : idx + _CLANG_TIDY_BATCH_SIZE]
+        batch_result = _run_clang_tidy_invocation(scan_root, batch)
+        if batch_result.is_success() or len(batch) == 1:
+            results.append(batch_result)
+            continue
+        results.append(batch_result)
+        for filepath in batch:
+            results.append(_run_clang_tidy_invocation(scan_root, [filepath]))
+
+    return _merge_tool_scan_results("clang-tidy", results)
+
+
+def _run_cppcheck_invocation(scan_root: Path, files: list[str]) -> CxxToolScanResult:
+    file_args = _relative_tool_args(files, scan_root)
     result = run_tool_result(
-        f"clang-tidy -p . --quiet -checks=-*,clang-analyzer-security*,cert-* {file_args}",
+        (
+            "cppcheck --template='{file}:{line}:{severity}:{id}:{message}' "
+            f"--enable=all --quiet {file_args}"
+        ),
         scan_root,
-        _parse_clang_tidy_output,
+        _parse_cppcheck_output,
     )
+    state = _tool_result_state(result)
     return CxxToolScanResult(
-        tool="clang-tidy",
-        state=_tool_result_state(result),
+        tool="cppcheck",
+        state=state,
         entries=_normalize_tool_entries(result.entries),
         detail=result.message or result.error_kind or "",
-        covered_files=tuple(source_files),
+        covered_files=tuple(files) if state in {"ok", "empty"} else (),
     )
 
 
@@ -456,22 +502,18 @@ def _run_cppcheck(scan_root: Path, files: list[str]) -> CxxToolScanResult:
     if not files:
         return CxxToolScanResult(tool="cppcheck", state="empty", entries=[])
 
-    file_args = _relative_tool_args(files, scan_root)
-    result = run_tool_result(
-        (
-            "cppcheck --template='{file}:{line}:{severity}:{id}:{message}' "
-            f"--enable=all --quiet {file_args}"
-        ),
-        scan_root,
-        _parse_cppcheck_output,
-    )
-    return CxxToolScanResult(
-        tool="cppcheck",
-        state=_tool_result_state(result),
-        entries=_normalize_tool_entries(result.entries),
-        detail=result.message or result.error_kind or "",
-        covered_files=tuple(files),
-    )
+    results: list[CxxToolScanResult] = []
+    for idx in range(0, len(files), _CPPCHECK_BATCH_SIZE):
+        batch = files[idx : idx + _CPPCHECK_BATCH_SIZE]
+        batch_result = _run_cppcheck_invocation(scan_root, batch)
+        if batch_result.is_success() or len(batch) == 1:
+            results.append(batch_result)
+            continue
+        results.append(batch_result)
+        for filepath in batch:
+            results.append(_run_cppcheck_invocation(scan_root, [filepath]))
+
+    return _merge_tool_scan_results("cppcheck", results)
 
 
 def _dedupe_subject(detail: dict) -> str:

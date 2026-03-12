@@ -136,6 +136,123 @@ def test_detect_cxx_security_uses_cppcheck_when_clang_tidy_missing_without_reduc
     assert entry["detail"]["check_id"] == "dangerousFunctionSystem"
 
 
+def test_detect_cxx_security_retries_cppcheck_per_file_after_batch_timeout(
+    tmp_path,
+    monkeypatch,
+):
+    source_a = tmp_path / "src" / "unsafe_a.cpp"
+    source_b = tmp_path / "src" / "unsafe_b.cpp"
+    source_a.parent.mkdir(parents=True)
+    source_a.write_text("int a() { return 0; }\n")
+    source_b.write_text("int b() { return 0; }\n")
+
+    calls: list[str] = []
+
+    monkeypatch.setattr(
+        security_mod,
+        "shutil",
+        SimpleNamespace(which=lambda cmd: "C:/tools/cppcheck.exe" if cmd == "cppcheck" else None),
+        raising=False,
+    )
+
+    def _fake_run_tool_result(cmd, path, parser, **_kwargs):
+        assert cmd.startswith("cppcheck ")
+        calls.append(cmd)
+        if "unsafe_a.cpp" in cmd and "unsafe_b.cpp" in cmd:
+            return ToolRunResult(
+                entries=[],
+                status="error",
+                error_kind="tool_timeout",
+                message="timeout",
+                returncode=1,
+            )
+        if "unsafe_a.cpp" in cmd:
+            output = f"{source_a}:8:warning:dangerousFunctionSystem:Using 'system' can be unsafe\n"
+            return ToolRunResult(entries=parser(output, path), status="ok", returncode=1)
+        if "unsafe_b.cpp" in cmd:
+            return ToolRunResult(entries=[], status="empty", returncode=0)
+        raise AssertionError(f"unexpected command: {cmd}")
+
+    monkeypatch.setattr(
+        security_mod,
+        "run_tool_result",
+        _fake_run_tool_result,
+        raising=False,
+    )
+
+    result = detect_cxx_security(
+        [str(source_a.resolve()), str(source_b.resolve())],
+        zone_map=None,
+    )
+
+    assert len(calls) == 3
+    assert result.coverage is None
+    assert result.files_scanned == 2
+    assert len(result.entries) == 1
+    assert result.entries[0]["detail"]["source"] == "cppcheck"
+    assert result.entries[0]["detail"]["check_id"] == "dangerousFunctionSystem"
+
+
+def test_detect_cxx_security_retries_clang_tidy_per_file_after_batch_failure(
+    tmp_path,
+    monkeypatch,
+):
+    source_a = tmp_path / "src" / "unsafe_a.cpp"
+    source_b = tmp_path / "src" / "unsafe_b.cpp"
+    source_a.parent.mkdir(parents=True)
+    source_a.write_text("int a() { return 0; }\n")
+    source_b.write_text("int b() { return 0; }\n")
+    (tmp_path / "compile_commands.json").write_text("[]\n")
+
+    calls: list[str] = []
+
+    monkeypatch.setattr(
+        security_mod,
+        "shutil",
+        SimpleNamespace(which=lambda cmd: "C:/tools/clang-tidy.exe" if cmd == "clang-tidy" else None),
+        raising=False,
+    )
+
+    def _fake_run_tool_result(cmd, path, parser, **_kwargs):
+        assert cmd.startswith("clang-tidy ")
+        calls.append(cmd)
+        if "unsafe_a.cpp" in cmd and "unsafe_b.cpp" in cmd:
+            return ToolRunResult(
+                entries=[],
+                status="error",
+                error_kind="tool_failed_unparsed_output",
+                message="batch crash",
+                returncode=1,
+            )
+        if "unsafe_a.cpp" in cmd:
+            output = (
+                f"{source_a}:7:5: warning: call to 'strcpy' is insecure [clang-analyzer-security.insecureAPI.strcpy]\n"
+            )
+            return ToolRunResult(entries=parser(output, path), status="ok", returncode=1)
+        if "unsafe_b.cpp" in cmd:
+            return ToolRunResult(entries=[], status="empty", returncode=0)
+        raise AssertionError(f"unexpected command: {cmd}")
+
+    monkeypatch.setattr(
+        security_mod,
+        "run_tool_result",
+        _fake_run_tool_result,
+        raising=False,
+    )
+
+    result = detect_cxx_security(
+        [str(source_a.resolve()), str(source_b.resolve())],
+        zone_map=None,
+    )
+
+    assert len(calls) == 3
+    assert result.coverage is None
+    assert result.files_scanned == 2
+    assert len(result.entries) == 1
+    assert result.entries[0]["detail"]["source"] == "clang-tidy"
+    assert result.entries[0]["detail"]["check_id"] == "clang-analyzer-security.insecureAPI.strcpy"
+
+
 def test_detect_cxx_security_prefers_clang_tidy_for_duplicate_same_line(tmp_path, monkeypatch):
     source = tmp_path / "src" / "unsafe.cpp"
     source.parent.mkdir(parents=True)
@@ -278,6 +395,40 @@ def test_detect_cxx_security_keeps_distinct_same_line_tool_findings(
         "clang-analyzer-security.insecureAPI.strcpy",
         "clang-analyzer-security.insecureAPI.strcat",
     }
+
+
+def test_normalize_tool_entries_ignores_cppcheck_syntax_error_with_fontsystem_name():
+    entries = security_mod._normalize_tool_entries(
+        [
+            {
+                "file": r"D:/repo/FontSystem.h",
+                "line": 9,
+                "severity": "error",
+                "check_id": "syntaxError",
+                "message": "Code 'namespaceFontSystem{' is invalid C code.",
+                "source": "cppcheck",
+            }
+        ]
+    )
+
+    assert entries == []
+
+
+def test_normalize_tool_entries_ignores_cppcheck_random_prefix_false_positive():
+    entries = security_mod._normalize_tool_entries(
+        [
+            {
+                "file": r"D:/repo/RandomFrameAccessPlugin.cpp",
+                "line": 44,
+                "severity": "warning",
+                "check_id": "uninitMemberVar",
+                "message": "Member variable 'RandomFrameAccessProcessor::_currSrcImg' is not initialized in the constructor.",
+                "source": "cppcheck",
+            }
+        ]
+    )
+
+    assert entries == []
 
 
 def test_cxx_config_security_hook_returns_lang_result(tmp_path):
