@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any, NotRequired, Required, TypedDict
 
+from desloppify.engine._plan.constants import SYNTHETIC_PREFIXES
 from desloppify.engine._plan.schema.migrations import (
     upgrade_plan_to_v8 as _upgrade_plan_to_v8,
 )
@@ -283,15 +284,24 @@ def planned_objective_ids(
 ) -> set[str]:
     """Return the subset of objective IDs the plan considers active work.
 
-    Pre-triage (plan tracks no objective IDs): all are planned.
-    Post-triage: only IDs the plan tracks are planned; the rest are
-    unplanned backlog that doesn't block phase transitions.
+    Pre-triage (plan tracks nothing): all objective IDs are treated as
+    planned work.
+
+    Once the plan tracks anything, only the intersection with live
+    objective IDs counts as planned. This lets stale queue_order entries
+    fail closed into postflight/backlog instead of broadening execution
+    back out to the entire objective backlog.
     """
     tracked = tracked_plan_ids(plan)
-    planned = all_objective_ids & tracked
-    if planned:
-        return planned
-    return set(all_objective_ids)
+    skipped_ids = set(plan.get("skipped", {}).keys()) if isinstance(plan, dict) else set()
+    active_tracked = {
+        issue_id
+        for issue_id in tracked - skipped_ids
+        if not any(issue_id.startswith(prefix) for prefix in SYNTHETIC_PREFIXES)
+    }
+    if not active_tracked:
+        return set(all_objective_ids)
+    return all_objective_ids & active_tracked
 
 
 def validate_plan(plan: dict[str, Any]) -> None:

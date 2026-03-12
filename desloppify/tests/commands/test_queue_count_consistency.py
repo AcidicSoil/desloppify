@@ -683,6 +683,53 @@ class TestClusterFocusDoesNotTriggerRunScan:
 
 
 # ---------------------------------------------------------------------------
+# Stale tracked IDs must not broaden execution to backlog
+# ---------------------------------------------------------------------------
+
+class TestStaleTrackedPlanDoesNotBroadenExecution:
+    def test_stale_plan_shows_run_scan_instead_of_backlog_items(self):
+        """A stale queue_order should drain into postflight, not generic backlog."""
+        from desloppify.engine._work_queue.core import (
+            QueueBuildOptions,
+            build_work_queue,
+        )
+
+        state = {
+            "issues": {
+                "live-issue": {
+                    "id": "live-issue",
+                    "detector": "unused",
+                    "status": "open",
+                    "file": "src/live.ts",
+                    "tier": 1,
+                    "confidence": "high",
+                    "summary": "still open but not tracked by the plan",
+                    "detail": {},
+                },
+            },
+            "scan_count": 5,
+        }
+        plan = {
+            "plan_start_scores": {"strict": 75.0},
+            "queue_order": ["stale-issue"],
+            "skipped": {},
+            "clusters": {},
+            "overrides": {},
+            "refresh_state": {},
+        }
+
+        result = build_work_queue(
+            state,
+            options=QueueBuildOptions(status="open", count=None, plan=plan),
+        )
+
+        ids = [item["id"] for item in result["items"]]
+        assert ids == ["workflow::run-scan"], (
+            "stale tracked IDs should not make all open backlog items execution work"
+        )
+
+
+# ---------------------------------------------------------------------------
 # Fix 4a: render_queue_header for workflow-only items
 # ---------------------------------------------------------------------------
 

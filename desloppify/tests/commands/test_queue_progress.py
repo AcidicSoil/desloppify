@@ -83,6 +83,7 @@ def test_queue_breakdown_defaults():
     b = QueueBreakdown()
     assert b.queue_total == 0
     assert b.plan_ordered == 0
+    assert b.stale_plan_ordered == 0
     assert b.skipped == 0
     assert b.subjective == 0
     assert b.workflow == 0
@@ -180,6 +181,19 @@ def test_headline_with_plan_and_skipped():
     assert "1934 items" in headline
     assert "292 planned" in headline
     assert "23 skipped" in headline
+
+
+def test_headline_with_stale_tracked_items():
+    b = QueueBreakdown(
+        queue_total=1,
+        workflow=1,
+        stale_plan_ordered=77,
+        skipped=2201,
+    )
+    headline = format_queue_headline(b)
+    assert "1 item" in headline
+    assert "77 stale tracked" in headline
+    assert "2201 skipped" in headline
 
 
 def test_headline_omits_zero_segments():
@@ -280,6 +294,21 @@ def test_block_with_frozen_score():
     assert "frozen at plan start" in joined
 
 
+def test_block_warns_when_plan_contains_stale_tracked_items():
+    b = QueueBreakdown(
+        queue_total=1,
+        workflow=1,
+        stale_plan_ordered=12,
+    )
+    block = format_queue_block(b)
+    texts = [text for text, _style in block]
+    styles = [style for _text, style in block]
+    joined = "\n".join(texts)
+    assert "12 plan-tracked items are stale" in joined
+    assert "desloppify plan queue" in joined
+    assert "yellow" in styles
+
+
 # ── plan_aware_queue_breakdown ───────────────────────────────
 
 
@@ -359,6 +388,36 @@ def test_plan_aware_queue_breakdown_with_focus():
     assert breakdown.focus_cluster == "smart-batch"
     assert breakdown.focus_cluster_total == 3
     assert breakdown.focus_cluster_count == 2  # f1, f3 open
+
+
+def test_plan_aware_queue_breakdown_counts_only_live_queue_order_ids():
+    mock_result = {
+        "total": 1,
+        "items": [{"id": "workflow::run-scan", "kind": "workflow_action"}],
+    }
+    plan = {
+        "queue_order": ["stale-issue", "workflow::run-scan"],
+        "skipped": {},
+    }
+    snapshot = SimpleNamespace(
+        phase="scan",
+        all_objective_items=(),
+        all_initial_review_items=(),
+        all_postflight_review_items=(),
+        all_scan_items=({"id": "workflow::run-scan", "kind": "workflow_action"},),
+        all_postflight_workflow_items=(),
+        all_postflight_triage_items=(),
+    )
+    with patch(
+        "desloppify.app.commands.helpers.queue_progress.build_execution_queue",
+        return_value=mock_result,
+    ), patch(
+        "desloppify.app.commands.helpers.queue_progress.queue_context",
+        return_value=SimpleNamespace(snapshot=snapshot),
+    ):
+        breakdown = plan_aware_queue_breakdown({"issues": {}}, plan=plan)
+    assert breakdown.plan_ordered == 1
+    assert breakdown.stale_plan_ordered == 1
 
 
 # ── print_frozen_score_with_queue_context ────────────────────

@@ -23,6 +23,9 @@ def format_queue_headline(breakdown) -> str:
         )
     if breakdown.plan_ordered > 0:
         segments.append(f"{breakdown.plan_ordered} planned")
+    if getattr(breakdown, "stale_plan_ordered", 0) > 0:
+        stale = breakdown.stale_plan_ordered
+        segments.append(f"{stale} stale tracked")
     if breakdown.skipped > 0:
         segments.append(f"{breakdown.skipped} skipped")
     if breakdown.subjective > 0:
@@ -66,6 +69,18 @@ def format_queue_block(
 
     lines.append((f"  {format_queue_headline(breakdown)}", "bold"))
 
+    if getattr(breakdown, "stale_plan_ordered", 0) > 0:
+        stale = breakdown.stale_plan_ordered
+        noun = "item" if stale == 1 else "items"
+        verb = "is" if stale == 1 else "are"
+        lines.append(
+            (
+                f"  Note: {stale} plan-tracked {noun} "
+                f"{verb} stale and not part of the live queue.",
+                "yellow",
+            )
+        )
+
     if breakdown.focus_cluster:
         lines.append(
             (
@@ -74,7 +89,11 @@ def format_queue_block(
                 "dim",
             )
         )
-    elif breakdown.plan_ordered > 0 or breakdown.skipped > 0:
+    elif (
+        breakdown.plan_ordered > 0
+        or getattr(breakdown, "stale_plan_ordered", 0) > 0
+        or breakdown.skipped > 0
+    ):
         lines.append(
             (
                 "  Details: `desloppify plan queue`"

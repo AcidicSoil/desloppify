@@ -47,6 +47,7 @@ class QueueBreakdown:
 
     queue_total: int = 0
     plan_ordered: int = 0
+    stale_plan_ordered: int = 0
     skipped: int = 0
     subjective: int = 0
     workflow: int = 0
@@ -147,11 +148,12 @@ def plan_aware_queue_breakdown(
 
     # Collapse clusters for display-level counting
     items = result.get("items", [])
-    lifecycle_phase = coarse_phase_name(
-        context.snapshot.phase
+    snapshot = (
+        context.snapshot
         if context is not None
-        else queue_context(state, plan=effective_plan).snapshot.phase
+        else queue_context(state, plan=effective_plan).snapshot
     )
+    lifecycle_phase = coarse_phase_name(snapshot.phase)
     if effective_plan and not effective_plan.get("active_cluster"):
         items = collapse_clusters(items, effective_plan)
 
@@ -170,13 +172,27 @@ def plan_aware_queue_breakdown(
 
     # Plan-derived counts
     plan_ordered = 0
+    stale_plan_ordered = 0
     skipped = 0
     if effective_plan:
         skipped = len(effective_plan.get("skipped", {}))
-        # plan_ordered = items that are in queue_order minus skipped
+        # plan_ordered = live queue_order items that still exist in the current
+        # snapshot; stale_plan_ordered captures dead queue_order entries so the
+        # summary does not imply they are still blocking the live queue.
         queue_order = effective_plan.get("queue_order", [])
         skipped_ids = set(effective_plan.get("skipped", {}).keys())
-        plan_ordered = sum(1 for fid in queue_order if fid not in skipped_ids)
+        current_item_ids = _snapshot_item_ids(snapshot)
+        if current_item_ids is None:
+            plan_ordered = sum(1 for fid in queue_order if fid not in skipped_ids)
+        else:
+            plan_ordered = sum(
+                1 for fid in queue_order
+                if fid not in skipped_ids and fid in current_item_ids
+            )
+            stale_plan_ordered = sum(
+                1 for fid in queue_order
+                if fid not in skipped_ids and fid not in current_item_ids
+            )
 
     # Focus cluster info
     focus_cluster = None
@@ -200,6 +216,7 @@ def plan_aware_queue_breakdown(
     return QueueBreakdown(
         queue_total=queue_total,
         plan_ordered=plan_ordered,
+        stale_plan_ordered=stale_plan_ordered,
         skipped=skipped,
         subjective=subjective,
         workflow=workflow,
@@ -208,6 +225,37 @@ def plan_aware_queue_breakdown(
         focus_cluster_count=focus_cluster_count,
         focus_cluster_total=focus_cluster_total,
     )
+
+
+def _snapshot_item_ids(snapshot: object) -> set[str] | None:
+    """Return all live queue item IDs represented by a snapshot.
+
+    When tests stub ``snapshot`` with only a ``phase`` attribute, return
+    ``None`` so callers can fall back to legacy plan_ordered counting.
+    """
+    partition_names = (
+        "all_objective_items",
+        "all_initial_review_items",
+        "all_postflight_review_items",
+        "all_scan_items",
+        "all_postflight_workflow_items",
+        "all_postflight_triage_items",
+    )
+    item_ids: set[str] = set()
+    saw_partition = False
+    for name in partition_names:
+        items = getattr(snapshot, name, None)
+        if items is None:
+            continue
+        saw_partition = True
+        for item in items:
+            if isinstance(item, dict):
+                item_id = item.get("id")
+                if isinstance(item_id, str) and item_id:
+                    item_ids.add(item_id)
+    if not saw_partition:
+        return None
+    return item_ids
 
 
 def get_plan_start_strict(plan: dict | None) -> float | None:
