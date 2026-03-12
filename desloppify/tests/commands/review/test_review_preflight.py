@@ -92,10 +92,42 @@ def _mock_policy(objective_count: int = 0) -> SimpleNamespace:
 
 def _mock_queue_context(objective_count: int = 0) -> SimpleNamespace:
     """Create a mock QueueContext with the given objective count."""
+    snapshot = SimpleNamespace(
+        objective_in_scope_count=objective_count,
+        planned_objective_count=objective_count,
+        all_postflight_review_items=(),
+    )
     return SimpleNamespace(
         plan=None,
         target_strict=95.0,
         policy=_mock_policy(objective_count),
+        snapshot=snapshot,
+    )
+
+
+def _mock_queue_context_with_reviews(
+    *,
+    objective_count: int = 0,
+    review_dims: tuple[str, ...] = (),
+) -> SimpleNamespace:
+    items = tuple(
+        {
+            "kind": "issue",
+            "detector": "review",
+            "detail": {"dimension": dimension},
+        }
+        for dimension in review_dims
+    )
+    snapshot = SimpleNamespace(
+        objective_in_scope_count=objective_count,
+        planned_objective_count=objective_count,
+        all_postflight_review_items=items,
+    )
+    return SimpleNamespace(
+        plan=None,
+        target_strict=95.0,
+        policy=_mock_policy(objective_count),
+        snapshot=snapshot,
     )
 
 
@@ -121,7 +153,10 @@ def test_subjective_review_backlog_blocks_preflight(capsys):
             dimension="naming_quality",
         )
     }
-    with patch(_QUEUE_CONTEXT, return_value=_mock_queue_context(objective_count=0)):
+    with patch(
+        _QUEUE_CONTEXT,
+        return_value=_mock_queue_context_with_reviews(review_dims=("naming_quality",)),
+    ):
         with pytest.raises(CommandError) as exc:
             review_rerun_preflight(state, _make_args())
         assert exc.value.exit_code == 1
@@ -139,7 +174,10 @@ def test_subjective_concerns_backlog_blocks_preflight(capsys):
             dimension="naming_quality",
         )
     }
-    with patch(_QUEUE_CONTEXT, return_value=_mock_queue_context(objective_count=0)):
+    with patch(
+        _QUEUE_CONTEXT,
+        return_value=_mock_queue_context_with_reviews(review_dims=("naming_quality",)),
+    ):
         with pytest.raises(CommandError) as exc:
             review_rerun_preflight(state, _make_args())
         assert exc.value.exit_code == 1
@@ -158,28 +196,17 @@ def test_subjective_review_backlog_is_dimension_filtered():
         )
     }
     args = _make_args(dimensions="naming_quality")
-    with patch(_QUEUE_CONTEXT, return_value=_mock_queue_context(objective_count=0)):
+    with patch(
+        _QUEUE_CONTEXT,
+        return_value=_mock_queue_context_with_reviews(review_dims=("logic_clarity",)),
+    ):
         review_rerun_preflight(state, args)
 
 
 def test_subjective_assessment_queue_items_do_not_block_targeted_rerun():
     """Visible rerun actions should not fall back to objective backlog counts."""
     state = _state_with_prior_review()
-    queue = {
-        "items": [
-            {
-                "detector": "subjective_assessment",
-                "detail": {"dimension": "naming_quality"},
-            }
-        ]
-    }
-    with (
-        patch(_QUEUE_CONTEXT, return_value=_mock_queue_context(objective_count=20)),
-        patch(
-            "desloppify.app.commands.review.preflight.build_work_queue",
-            return_value=queue,
-        ),
-    ):
+    with patch(_QUEUE_CONTEXT, return_value=_mock_queue_context(objective_count=0)):
         review_rerun_preflight(state, _make_args(dimensions="naming_quality"))
 
 
@@ -420,47 +447,17 @@ def test_targeting_mix_of_scored_and_unscored_blocks_and_suggests(capsys):
     assert "--dimensions logic_clarity" in err
 
 
-def test_targeted_rerun_ignores_unrelated_objective_backlog(monkeypatch):
-    """Targeted reruns ignore objective backlog outside the requested dimensions."""
+def test_targeted_rerun_blocks_on_any_objective_backlog(capsys):
+    """Targeted reruns remain blocked while any in-scope objective backlog exists."""
     state = _state_with_prior_review()
     args = _make_args(dimensions="naming_quality")
-    monkeypatch.setattr(
-        "desloppify.app.commands.review.preflight.build_work_queue",
-        lambda *_args, **_kwargs: {
-            "items": [
-                _objective_issue(
-                    issue_id="smells::logic",
-                    dimension="logic_clarity",
-                )
-            ]
-        },
-    )
-    with patch(_QUEUE_CONTEXT, return_value=_mock_queue_context(objective_count=3)):
-        review_rerun_preflight(state, args)
-
-
-def test_targeted_rerun_blocks_on_same_scope_objective_backlog(capsys, monkeypatch):
-    """Targeted reruns still block on objective backlog in the same dimensions."""
-    state = _state_with_prior_review()
-    args = _make_args(dimensions="naming_quality")
-    monkeypatch.setattr(
-        "desloppify.app.commands.review.preflight.build_work_queue",
-        lambda *_args, **_kwargs: {
-            "items": [
-                _objective_issue(
-                    issue_id="smells::naming",
-                    dimension="naming_quality",
-                )
-            ]
-        },
-    )
     with patch(_QUEUE_CONTEXT, return_value=_mock_queue_context(objective_count=3)):
         with pytest.raises(CommandError) as exc:
             review_rerun_preflight(state, args)
         assert exc.value.exit_code == 1
 
     err = capsys.readouterr().err
-    assert "Open objective issue(s): 1" in err
+    assert "Open objective issue(s): 3" in err
 
 
 def test_no_dimensions_flag_blocks_on_any_scored(capsys):

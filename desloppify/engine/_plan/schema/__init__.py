@@ -241,6 +241,12 @@ def ensure_plan_defaults(plan: dict[str, Any]) -> None:
     for key, value in defaults.items():
         plan.setdefault(key, value)
     _upgrade_plan_to_v8(plan)
+    subjective_defer_meta = plan.get("subjective_defer_meta")
+    if isinstance(subjective_defer_meta, dict):
+        subjective_defer_meta.pop("force_visible_ids", None)
+    epic_triage_meta = plan.get("epic_triage_meta")
+    if isinstance(epic_triage_meta, dict):
+        epic_triage_meta.pop("triage_force_visible", None)
 
 
 def triage_clusters(plan: dict[str, Any]) -> dict[str, Cluster]:
@@ -250,6 +256,42 @@ def triage_clusters(plan: dict[str, Any]) -> dict[str, Cluster]:
         for name, cluster in plan.get("clusters", {}).items()
         if name.startswith(EPIC_PREFIX)
     }
+
+
+def tracked_plan_ids(plan: dict[str, Any] | None) -> set[str]:
+    """Collect all issue IDs the plan is actively tracking.
+
+    Includes queue_order, skipped, overrides, and cluster members/step refs.
+    Returns an empty set for None or non-dict plans.
+    """
+    if not isinstance(plan, dict):
+        return set()
+    tracked: set[str] = set(plan.get("queue_order", []))
+    tracked.update(plan.get("skipped", {}).keys())
+    tracked.update(plan.get("overrides", {}).keys())
+    for cluster in plan.get("clusters", {}).values():
+        tracked.update(cluster.get("issue_ids", []))
+        for step in cluster.get("action_steps", []):
+            if isinstance(step, dict):
+                tracked.update(step.get("issue_refs", []))
+    return tracked
+
+
+def planned_objective_ids(
+    all_objective_ids: set[str],
+    plan: dict[str, Any] | None,
+) -> set[str]:
+    """Return the subset of objective IDs the plan considers active work.
+
+    Pre-triage (plan tracks no objective IDs): all are planned.
+    Post-triage: only IDs the plan tracks are planned; the rest are
+    unplanned backlog that doesn't block phase transitions.
+    """
+    tracked = tracked_plan_ids(plan)
+    planned = all_objective_ids & tracked
+    if planned:
+        return planned
+    return set(all_objective_ids)
 
 
 def validate_plan(plan: dict[str, Any]) -> None:
@@ -300,6 +342,8 @@ __all__ = [
     "VALID_SKIP_KINDS",
     "empty_plan",
     "ensure_plan_defaults",
+    "planned_objective_ids",
+    "tracked_plan_ids",
     "triage_clusters",
     "validate_plan",
 ]

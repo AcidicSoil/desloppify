@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 
 from desloppify.base.exception_sets import PLAN_LOAD_EXCEPTIONS
 from desloppify.base.output.terminal import colorize
-from desloppify.engine.plan_queue import (
+from desloppify.engine._plan.refresh_lifecycle import (
     LIFECYCLE_PHASE_EXECUTE,
     LIFECYCLE_PHASE_REVIEW,
     LIFECYCLE_PHASE_SCAN,
@@ -20,9 +20,10 @@ from desloppify.engine.plan_queue import (
 from desloppify.engine.plan_state import load_plan
 from desloppify.state_scoring import score_snapshot
 from desloppify.engine._work_queue.core import QueueBuildOptions
+from desloppify.engine._work_queue.context import queue_context
 from desloppify.engine._work_queue.helpers import is_subjective_queue_item
-from desloppify.engine._work_queue.lifecycle import resolve_lifecycle_phase
 from desloppify.engine._work_queue.plan_order import collapse_clusters
+from desloppify.engine._work_queue.snapshot import coarse_phase_name
 from desloppify.engine.planning.queue_policy import build_execution_queue
 from desloppify.app.commands.helpers.queue_progress_render import (
     format_plan_delta,
@@ -146,7 +147,11 @@ def plan_aware_queue_breakdown(
 
     # Collapse clusters for display-level counting
     items = result.get("items", [])
-    lifecycle_phase = resolve_lifecycle_phase(items, plan=effective_plan)
+    lifecycle_phase = coarse_phase_name(
+        context.snapshot.phase
+        if context is not None
+        else queue_context(state, plan=effective_plan).snapshot.phase
+    )
     if effective_plan and not effective_plan.get("active_cluster"):
         items = collapse_clusters(items, effective_plan)
 

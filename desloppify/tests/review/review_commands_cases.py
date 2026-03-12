@@ -413,8 +413,8 @@ class TestCmdReviewPrepare:
         }
 
         with (
-            patch("desloppify.engine.plan_queue.has_living_plan", lambda _path=None: True),
-            patch("desloppify.engine.plan_queue.load_plan", lambda _path=None: pending_plan),
+            patch("desloppify.app.commands.review.importing.cmd.has_living_plan", lambda _path=None: True),
+            patch("desloppify.app.commands.review.importing.cmd.load_plan", lambda _path=None: pending_plan),
         ):
             with pytest.raises(CommandError) as exc:
                 _do_import(

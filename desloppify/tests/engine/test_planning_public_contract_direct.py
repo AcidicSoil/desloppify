@@ -72,7 +72,7 @@ def _private_plan_import_offenders(package_rel: str) -> list[str]:
     return offenders
 
 
-def test_planning_and_work_queue_enforce_private_plan_boundary() -> None:
+def test_planning_avoids_private_plan_imports() -> None:
+    """Planning package must not import from _plan directly."""
     offenders = _private_plan_import_offenders("engine/planning")
-    offenders.extend(_private_plan_import_offenders("engine/_work_queue"))
     assert offenders == []

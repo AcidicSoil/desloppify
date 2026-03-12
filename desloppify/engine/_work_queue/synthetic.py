@@ -24,7 +24,7 @@ from desloppify.engine._work_queue.synthetic_workflow import (
     build_score_checkpoint_item,
 )
 from desloppify.engine._work_queue.types import WorkQueueItem
-from desloppify.engine.plan_queue import (
+from desloppify.engine._plan.constants import (
     confirmed_triage_stage_names,
     recorded_unconfirmed_triage_stage_names,
 )
@@ -116,7 +116,6 @@ def build_triage_stage_items(plan: dict, state: dict) -> list[WorkQueueItem]:
     order_set = set(order)
     present_ids = order_set & TRIAGE_IDS
     meta = plan.get("epic_triage_meta", {})
-    force_visible = bool(meta.get("triage_force_visible"))
     confirmed = confirmed_triage_stage_names(meta)
     recorded_unconfirmed = recorded_unconfirmed_triage_stage_names(meta)
     present_names = {
@@ -173,7 +172,6 @@ def build_triage_stage_items(plan: dict, state: dict) -> list[WorkQueueItem]:
             "blocked_by": blocked_by,
             "is_blocked": bool(blocked_by),
         }
-        item["force_visible"] = force_visible
         item["primary_command"] = cmd
         items.append(item)
     return items

@@ -24,6 +24,7 @@ from desloppify.base.config import (
 from desloppify.cli import (
     _apply_persisted_exclusions,
     _get_detector_names,
+    _project_root_from_state_path,
     _running_installed_package_from_checkout,
     _resolve_default_path,
     _warn_if_running_installed_package_from_checkout,
@@ -909,3 +910,57 @@ class TestResolveLang:
         args = SimpleNamespace(path=str(target_src))
         resolved = lang_helpers_mod.resolve_detection_root(args)
         assert resolved == target_root
+
+
+# ===========================================================================
+# _project_root_from_state_path
+# ===========================================================================
+
+
+class TestProjectRootFromStatePath:
+    """Infer project root from an explicit --state path."""
+
+    def test_language_state_file(self, tmp_path: Path):
+        dot = tmp_path / ".desloppify"
+        dot.mkdir()
+        sf = dot / "state-python.json"
+        sf.write_text("{}")
+        from desloppify.cli import _project_root_from_state_path
+
+        assert _project_root_from_state_path(str(sf)) == tmp_path
+
+    def test_plain_state_file(self, tmp_path: Path):
+        dot = tmp_path / ".desloppify"
+        dot.mkdir()
+        sf = dot / "state.json"
+        sf.write_text("{}")
+        from desloppify.cli import _project_root_from_state_path
+
+        assert _project_root_from_state_path(str(sf)) == tmp_path
+
+    def test_none_input(self):
+        from desloppify.cli import _project_root_from_state_path
+
+        assert _project_root_from_state_path(None) is None
+
+    def test_empty_string(self):
+        from desloppify.cli import _project_root_from_state_path
+
+        assert _project_root_from_state_path("") is None
+
+    def test_non_desloppify_dir(self, tmp_path: Path):
+        sf = tmp_path / "other" / "state-python.json"
+        sf.parent.mkdir()
+        sf.write_text("{}")
+        from desloppify.cli import _project_root_from_state_path
+
+        assert _project_root_from_state_path(str(sf)) is None
+
+    def test_unexpected_filename(self, tmp_path: Path):
+        dot = tmp_path / ".desloppify"
+        dot.mkdir()
+        sf = dot / "config.json"
+        sf.write_text("{}")
+        from desloppify.cli import _project_root_from_state_path
+
+        assert _project_root_from_state_path(str(sf)) is None

@@ -29,6 +29,7 @@ from desloppify.engine._plan.operations.meta import (
 )
 from desloppify.engine._plan.operations.queue import move_items
 from desloppify.engine._plan.operations.skip import (
+    backlog_items,
     resurface_stale_skips,
     skip_items,
     unskip_items,
@@ -58,6 +59,7 @@ __all__ = [
     "annotate_issue",
     "annotation_counts",
     "append_log_entry",
+    "backlog_items",
     "auto_complete_steps",
     "clear_focus",
     "create_cluster",

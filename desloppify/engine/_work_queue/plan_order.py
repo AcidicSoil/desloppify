@@ -73,16 +73,6 @@ def stamp_plan_sort_keys(
     """
     queue_order: list[str] = plan.get("queue_order", [])
     skipped_ids: set[str] = set(plan.get("skipped", {}).keys())
-    subjective_defer_meta = plan.get("subjective_defer_meta", {})
-    if not isinstance(subjective_defer_meta, dict):
-        subjective_defer_meta = {}
-    normalized_force_visible_ids = sorted({
-        str(fid).strip()
-        for fid in subjective_defer_meta.get("force_visible_ids", [])
-        if str(fid).strip()
-    })
-    subjective_defer_meta["force_visible_ids"] = normalized_force_visible_ids
-    force_visible_ids = set(normalized_force_visible_ids)
 
     position_map: dict[str, int] = {}
     for idx, issue_id in enumerate(queue_order):
@@ -94,8 +84,6 @@ def stamp_plan_sort_keys(
         pos = position_map.get(item_id)
         item["_plan_position"] = pos  # None if not in queue_order
         item["_is_new"] = item_id in new_ids
-        if item_id in force_visible_ids:
-            item["force_visible"] = True
 
 
 def separate_skipped(

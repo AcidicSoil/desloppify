@@ -203,11 +203,14 @@ def test_build_deferred_disposition_item_with_temporary_skips() -> None:
     assert item["detail"]["deferred_cluster_count"] == 0
     assert item["detail"]["deferred_individual_count"] == 2
     tools = item["detail"]["planning_tools"]
-    assert len(tools) == 4
+    assert len(tools) == 5
     assert tools[0]["command"] == "desloppify plan queue --include-skipped"
     assert "cluster-or-id" in tools[2]["command"]
+    assert tools[3]["label"] == "Move a subset to backlog"
+    assert "backlog" in tools[3]["command"]
     assert "decision_options" in item["detail"]
-    assert len(item["detail"]["decision_options"]) == 2
+    assert len(item["detail"]["decision_options"]) == 3
+    assert item["detail"]["decision_options"][1]["label"] == "Move deferred work to backlog"
 
 
 def test_build_deferred_disposition_item_counts_clusters_and_individuals() -> None:

@@ -1,9 +1,9 @@
 """Internal plan implementation package (not a public import surface).
 
 This package owns plan internals: schema, operations, triage internals, and
-sync policy. Callers should route through focused public facades
-(``engine.plan_state``, ``engine.plan_ops``, ``engine.plan_queue``,
-``engine.plan_triage``) rather than importing from ``engine._plan`` directly.
+sync policy. Callers should route through focused public facades where they
+exist (for example ``engine.plan_state``, ``engine.plan_ops``,
+``engine.plan_triage``) instead of treating this package as a generic grab-bag.
 
 Subpackages:
 - schema: PlanState TypedDict and migration logic

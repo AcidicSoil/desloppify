@@ -42,7 +42,7 @@ from desloppify.engine._plan.sync.triage_start_policy import (
     TriageStartDecision,
     decide_triage_start,
 )
-from desloppify.engine.plan_queue import has_objective_backlog
+from desloppify.engine._plan.sync.context import has_objective_backlog
 from desloppify.engine.plan_state import PlanModel, ensure_plan_defaults
 
 

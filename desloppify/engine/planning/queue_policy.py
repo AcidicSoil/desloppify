@@ -6,6 +6,7 @@ from dataclasses import replace
 
 from desloppify.base.config import DEFAULT_TARGET_STRICT_SCORE
 from desloppify.engine._state.schema import StateModel
+from desloppify.engine._work_queue.context import queue_context
 from desloppify.engine._work_queue.core import (
     QueueBuildOptions,
     QueueVisibility,
@@ -25,12 +26,6 @@ def _subjective_threshold(state: StateModel, *, default: float = DEFAULT_TARGET_
     except (TypeError, ValueError):
         value = default
     return max(0.0, min(100.0, value))
-
-
-def _queue_shaping_plan_present(plan: dict | None) -> bool:
-    if not isinstance(plan, dict):
-        return False
-    return bool(plan.get("queue_order") or plan.get("overrides") or plan.get("clusters"))
 
 
 def _queue_plan_from_options(options: QueueBuildOptions) -> dict | None:
@@ -65,11 +60,14 @@ def build_execution_queue(
 ) -> WorkQueueResult:
     """Build the execution queue that follows the living plan when present."""
     options = options or QueueBuildOptions()
-    if not _queue_shaping_plan_present(_queue_plan_from_options(options)):
-        return build_work_queue(state, options=options)
+    ctx = options.context or queue_context(
+        state,
+        plan=_queue_plan_from_options(options),
+        target_strict=_subjective_threshold(state),
+    )
     return _build_work_queue_with_visibility(
         state,
-        options=replace(options),
+        options=replace(options, context=ctx),
         visibility=QueueVisibility.EXECUTION,
     )
 
@@ -81,11 +79,14 @@ def build_backlog_queue(
 ) -> WorkQueueResult:
     """Build the broader backlog, excluding work already tracked in the plan."""
     options = options or QueueBuildOptions()
-    if not _queue_shaping_plan_present(_queue_plan_from_options(options)):
-        return build_work_queue(state, options=options)
+    ctx = options.context or queue_context(
+        state,
+        plan=_queue_plan_from_options(options),
+        target_strict=_subjective_threshold(state),
+    )
     return _build_work_queue_with_visibility(
         state,
-        options=replace(options),
+        options=replace(options, context=ctx),
         visibility=QueueVisibility.BACKLOG,
     )
 

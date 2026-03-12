@@ -15,6 +15,7 @@ from desloppify.app.commands.helpers.state import require_issue_inventory
 from desloppify.app.commands.plan.cluster import cmd_cluster_dispatch
 from desloppify.app.commands.plan.commit_log import cmd_commit_log_dispatch
 from desloppify.app.commands.plan.override import (
+    cmd_plan_backlog,
     cmd_plan_describe,
     cmd_plan_focus,
     cmd_plan_note,
@@ -216,6 +217,7 @@ _PLAN_ACTION_HANDLERS = {
     "focus": cmd_plan_focus,
     "skip": cmd_plan_skip,
     "unskip": cmd_plan_unskip,
+    "backlog": cmd_plan_backlog,
     "reopen": cmd_plan_reopen,
     "cluster": cmd_cluster_dispatch,
     "triage": cmd_plan_triage,

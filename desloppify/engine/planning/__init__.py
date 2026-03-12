@@ -6,11 +6,11 @@ and does not own plan persistence or queue mutation.
 Ownership contract:
 - ``engine.plan_state``: persisted plan state/schema/policy surface.
 - ``engine.plan_ops``: queue/cluster/skip/annotation mutations.
-- ``engine.plan_queue``: reconcile/sync lifecycle orchestration.
+- ``engine._plan`` + ``engine._work_queue``: lifecycle/orchestration internals.
 - ``engine.plan_triage``: triage prompts/commands/contracts.
 - ``engine.planning`` (this package): read-only rendering/query helpers only.
 
-``engine._plan`` remains internal implementation detail.
+``engine._plan`` remains internal implementation detail outside plan/queue code.
 """
 
 from __future__ import annotations

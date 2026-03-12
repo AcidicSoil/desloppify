@@ -146,8 +146,8 @@ def test_plan_ordered_stale_subjective_gated_with_objective_backlog():
     assert len(subj_with_plan) == 0
 
 
-def test_force_visible_subjective_bypasses_endgame_gate():
-    """Escalated subjective reruns should remain visible with objective backlog."""
+def test_legacy_force_visible_subjective_is_ignored_during_execute():
+    """Legacy force-visible data must not surface subjective work during execute."""
     from desloppify.engine._plan.schema import empty_plan
 
     state = _state(
@@ -179,11 +179,7 @@ def test_force_visible_subjective_bypasses_endgame_gate():
 
     queue = build_work_queue(state, count=None, include_subjective=True, plan=plan)
     ids = [item["id"] for item in queue["items"]]
-    assert "subjective::naming_quality" in ids
-    assert "smells::src/a.py::x" in ids
-    assert plan["subjective_defer_meta"]["force_visible_ids"] == [
-        "subjective::naming_quality"
-    ]
+    assert ids == ["smells::src/a.py::x"]
 
 
 def test_triage_pending_does_not_unhide_stale_subjective_items():
@@ -246,8 +242,8 @@ def test_triage_pending_does_not_unhide_stale_subjective_items():
     assert "subjective::error_consistency" not in ids
 
 
-def test_force_visible_triage_stage_bypasses_objective_gate():
-    """Escalated triage stages should surface even while objective work exists."""
+def test_legacy_force_visible_triage_stage_is_ignored_during_execute():
+    """Legacy triage-force data must not surface triage during execute."""
     from desloppify.engine._plan.schema import empty_plan
 
     state = _state([_issue("smells::src/a.py::x", detector="smells", tier=3)])
@@ -257,12 +253,11 @@ def test_force_visible_triage_stage_bypasses_objective_gate():
 
     queue = build_work_queue(state, count=None, include_subjective=True, plan=plan)
     ids = [item["id"] for item in queue["items"]]
-    assert "triage::observe" in ids
-    assert "smells::src/a.py::x" in ids
+    assert ids == ["smells::src/a.py::x"]
 
 
-def test_execution_queue_hides_unplanned_state_issues():
-    """Execution queues should only surface work explicitly tracked by the plan."""
+def test_execution_queue_excludes_unplanned_objective_items():
+    """Unplanned objective items don't appear in execution — only planned items do."""
     from desloppify.engine._plan.schema import empty_plan
 
     state = _state(
@@ -286,8 +281,8 @@ def test_execution_queue_hides_unplanned_state_issues():
     assert ids == ["smells::src/a.py::planned"]
 
 
-def test_backlog_queue_excludes_plan_tracked_items():
-    """Backlog view should exclude work already tracked in the execution plan."""
+def test_backlog_queue_excludes_execution_objective_items():
+    """Backlog should exclude objective work already admitted to execution."""
     from desloppify.engine._plan.schema import empty_plan
 
     state = _state(
@@ -308,7 +303,64 @@ def test_backlog_queue_excludes_plan_tracked_items():
         ),
     )
     ids = [item["id"] for item in queue["items"]]
-    assert ids == ["smells::src/b.py::unplanned"]
+    assert "smells::src/a.py::planned" not in ids
+    assert "smells::src/b.py::unplanned" not in ids
+    assert "workflow::run-scan" in ids
+
+
+def test_unplanned_objective_items_dont_block_postflight():
+    """Unplanned objective items don't keep the system in EXECUTE phase.
+
+    When all planned work drains, unplanned objective items should not block
+    phase transitions to postflight work. The has_unplanned_objective_blockers
+    flag is still set for informational purposes.
+
+    The split only applies when the plan has at least one tracked objective
+    (i.e. post-triage). Pre-triage plans treat all objectives as planned.
+    """
+    from desloppify.engine._plan.schema import empty_plan
+
+    state = _state(
+        [
+            _issue("smells::src/a.py::planned", detector="smells"),
+            _issue("smells::src/b.py::unplanned", detector="smells"),
+        ],
+        dimension_scores={
+            "Naming quality": {
+                "score": 70.0,
+                "strict": 70.0,
+                "failing": 1,
+                "detectors": {
+                    "subjective_assessment": {"dimension_key": "naming_quality"},
+                },
+            },
+        },
+    )
+    state["subjective_assessments"] = {
+        "naming_quality": {
+            "score": 70.0,
+            "needs_review_refresh": True,
+            "stale_since": "2026-01-01T00:00:00+00:00",
+        }
+    }
+
+    # Plan has one tracked objective — simulates post-triage state
+    plan = empty_plan()
+    plan["plan_start_scores"] = {"strict": 75.0}
+    plan["queue_order"] = ["smells::src/a.py::planned"]
+
+    queue = build_execution_queue(
+        state,
+        options=QueueBuildOptions(
+            count=None,
+            include_subjective=True,
+            plan=plan,
+        ),
+    )
+    ids = [item["id"] for item in queue["items"]]
+    # Only planned item appears — unplanned item does NOT block
+    assert ids == ["smells::src/a.py::planned"]
+    assert "smells::src/b.py::unplanned" not in ids
 
 
 # ── Lifecycle filter runs after plan_presort ───────────

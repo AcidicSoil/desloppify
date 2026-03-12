@@ -5,14 +5,18 @@ from __future__ import annotations
 import shlex
 
 from desloppify.engine.plan_triage import TRIAGE_STAGE_SPECS
-from desloppify.engine.plan_queue import (
+from desloppify.engine._plan.constants import (
     WORKFLOW_COMMUNICATE_SCORE_ID,
     WORKFLOW_CREATE_PLAN_ID,
     WORKFLOW_DEFERRED_DISPOSITION_ID,
     WORKFLOW_IMPORT_SCORES_ID,
     WORKFLOW_RUN_SCAN_ID,
     WORKFLOW_SCORE_CHECKPOINT_ID,
+)
+from desloppify.engine._plan.refresh_lifecycle import (
     postflight_scan_pending,
+)
+from desloppify.engine._plan.sync.workflow import (
     pending_import_scores_meta,
 )
 from desloppify.engine.plan_triage import (
@@ -326,6 +330,8 @@ def build_deferred_disposition_item(plan: dict) -> WorkQueueItem | None:
     subset_reactivate_cmd = "desloppify plan unskip <cluster-or-id>"
     inspect_cmd = "desloppify plan queue --include-skipped"
     inspect_item_cmd = "desloppify show <cluster-or-id>"
+    backlog_cmd = 'desloppify plan backlog "*"'
+    subset_backlog_cmd = "desloppify plan backlog <cluster-or-id>"
     wontfix_cmd = (
         'desloppify plan skip --permanent "*" '
         '--note "<why this deferred work should stay wontfix>" '
@@ -349,13 +355,14 @@ def build_deferred_disposition_item(plan: dict) -> WorkQueueItem | None:
         "summary": (
             "Deferred backlog decision required: "
             f"{cluster_count} {cluster_label} + {individual_count} individual {individual_label} "
-            "must be reactivated or marked wontfix."
+            "must be reactivated, moved to backlog, or marked wontfix."
         ),
         "detail": {
             "temporary_skipped_count": count,
             "deferred_cluster_count": cluster_count,
             "deferred_individual_count": individual_count,
             "reactivate_command": reactivate_cmd,
+            "backlog_command": backlog_cmd,
             "wontfix_command": wontfix_cmd,
             "planning_tools": [
                 {
@@ -371,6 +378,10 @@ def build_deferred_disposition_item(plan: dict) -> WorkQueueItem | None:
                     "command": subset_reactivate_cmd,
                 },
                 {
+                    "label": "Move a subset to backlog",
+                    "command": subset_backlog_cmd,
+                },
+                {
                     "label": "Mark a subset as permanent wontfix",
                     "command": subset_wontfix_cmd,
                 },
@@ -379,6 +390,10 @@ def build_deferred_disposition_item(plan: dict) -> WorkQueueItem | None:
                 {
                     "label": "Reactivate deferred work",
                     "command": reactivate_cmd,
+                },
+                {
+                    "label": "Move deferred work to backlog",
+                    "command": backlog_cmd,
                 },
                 {
                     "label": "Convert deferred work to wontfix",

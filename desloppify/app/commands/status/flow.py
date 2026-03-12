@@ -140,7 +140,7 @@ def render_terminal_status(
     print_open_scope_breakdown(state)
     print_scan_completeness(state)
 
-    objective_backlog = queue_ctx.policy.objective_count
+    objective_backlog = queue_ctx.snapshot.objective_in_scope_count
 
     if dim_scores:
         show_dimension_table(state, dim_scores, objective_backlog=objective_backlog)

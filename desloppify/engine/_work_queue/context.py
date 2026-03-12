@@ -14,14 +14,13 @@ from desloppify.base.config import (
     DEFAULT_TARGET_STRICT_SCORE,
     target_strict_score_from_config,
 )
-from desloppify.engine.plan_queue import (
-    SubjectiveVisibility,
-    compute_subjective_visibility,
+from desloppify.engine._plan.persistence import (
     has_living_plan,
     load_plan,
 )
 from desloppify.engine.plan_state import PlanLoadStatus
 from desloppify.engine._state.schema import StateModel
+from desloppify.engine._work_queue.snapshot import QueueSnapshot, build_queue_snapshot
 
 
 class _PlanAutoLoad:
@@ -37,15 +36,15 @@ PlanOption = dict | None | _PlanAutoLoad
 class QueueContext:
     """Immutable snapshot of resolved queue parameters.
 
-    Built once via :func:`queue_context`, then threaded through
-    ``build_work_queue``, ``plan_aware_queue_breakdown``, and command
-    helpers so every call site agrees on plan, target, and policy.
+    Built once via :func:`queue_context`, then threaded through queue
+    builders and command helpers so every call site agrees on plan,
+    target, and canonical queue facts.
     """
 
     plan: dict | None
     target_strict: float
-    policy: SubjectiveVisibility
     plan_load_status: PlanLoadStatus
+    snapshot: QueueSnapshot
 
 
 def resolve_plan_load_status(
@@ -94,9 +93,8 @@ def queue_context(
        ``load_plan()`` (guarded by ``PLAN_LOAD_EXCEPTIONS``).
     2. **target_strict** — explicit float wins; ``None`` reads from *config*
        via ``target_strict_score_from_config``; final fallback is ``95.0``.
-    3. **policy** — ``compute_subjective_visibility(state, ...)`` with the
-       resolved plan and target_strict so every downstream consumer sees
-       the same objective-vs-subjective balance.
+    3. **snapshot** — canonical queue phase and partitions derived from the
+       resolved plan and target_strict.
     """
     # --- resolve plan ---
     plan_load_status = resolve_plan_load_status(plan=plan)
@@ -110,18 +108,17 @@ def queue_context(
     else:
         resolved_target = DEFAULT_TARGET_STRICT_SCORE
 
-    # --- resolve policy ---
-    resolved_policy = compute_subjective_visibility(
+    snapshot = build_queue_snapshot(
         state,
-        target_strict=resolved_target,
         plan=resolved_plan,
+        target_strict=resolved_target,
     )
 
     return QueueContext(
         plan=resolved_plan,
         target_strict=resolved_target,
-        policy=resolved_policy,
         plan_load_status=plan_load_status,
+        snapshot=snapshot,
     )
 
 

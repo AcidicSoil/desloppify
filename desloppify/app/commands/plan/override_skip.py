@@ -29,6 +29,7 @@ from desloppify.engine.plan_state import (
 from desloppify.engine.plan_ops import (
     SKIP_KIND_LABELS,
     append_log_entry,
+    backlog_items,
     skip_items,
     skip_kind_from_flags,
     skip_kind_requires_attestation,
@@ -36,7 +37,7 @@ from desloppify.engine.plan_ops import (
     skip_kind_state_status,
     unskip_items,
 )
-from desloppify.engine.plan_queue import clear_postflight_scan_completion
+from desloppify.engine._plan.refresh_lifecycle import clear_postflight_scan_completion
 
 logger = logging.getLogger(__name__)
 
@@ -331,9 +332,44 @@ def cmd_plan_unskip(args: argparse.Namespace) -> None:
         )
 
 
+def cmd_plan_backlog(args: argparse.Namespace) -> None:
+    """Move deferred items to backlog — remove from plan tracking entirely."""
+    runtime = command_runtime(args)
+    state = runtime.state
+    if not require_issue_inventory(state):
+        return
+
+    patterns: list[str] = getattr(args, "patterns", [])
+
+    state_file = runtime.state_path
+    plan_file = _plan_file_for_state(state_file)
+    plan = load_plan(plan_file)
+    issue_ids = resolve_ids_from_patterns(state, patterns, plan=plan, status_filter="all")
+    if not issue_ids:
+        print(colorize("  No matching issues found.", "yellow"))
+        return
+
+    count = backlog_items(plan, issue_ids)
+    if not count:
+        print(colorize("  No matching deferred items found.", "yellow"))
+        return
+
+    append_log_entry(
+        plan,
+        "backlog",
+        issue_ids=issue_ids[:count],
+        actor="user",
+    )
+    clear_postflight_scan_completion(plan, issue_ids=issue_ids)
+    save_plan(plan, plan_file)
+
+    print(colorize(f"  Moved {count} item(s) to backlog.", "green"))
+
+
 __all__ = [
     "_apply_state_skip_resolution",
     "_validate_skip_requirements",
+    "cmd_plan_backlog",
     "cmd_plan_skip",
     "cmd_plan_unskip",
 ]

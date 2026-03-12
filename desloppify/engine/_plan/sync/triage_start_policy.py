@@ -58,7 +58,8 @@ def decide_triage_start(
     if state is None:
         return TriageStartDecision(action="inject", reason="no_state_available")
 
-    if is_mid_cycle(plan) and has_objective_backlog(state, policy):
+    has_objective = has_objective_backlog(state, policy)
+    if is_mid_cycle(plan) and has_objective:
         if explicit_start and attested_override:
             return TriageStartDecision(action="inject", reason="attested_override")
         return TriageStartDecision(action="defer", reason="objective_backlog_mid_cycle")

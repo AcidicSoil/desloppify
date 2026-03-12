@@ -4,13 +4,33 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import desloppify.engine.plan_queue as plan_queue_mod
 from desloppify import state as state_mod
 from desloppify.app.commands.helpers.display import short_issue_id
 from desloppify.app.commands.review.importing.flags import imported_assessment_keys
 from desloppify.base.config import target_strict_score_from_config
 from desloppify.base.exception_sets import PLAN_LOAD_EXCEPTIONS
 from desloppify.base.output.terminal import colorize
+from desloppify.engine._plan.auto_cluster import auto_cluster_issues
+from desloppify.engine._plan.operations.meta import append_log_entry
+from desloppify.engine._plan.persistence import (
+    has_living_plan,
+    load_plan,
+    plan_path_for_state,
+    save_plan,
+)
+from desloppify.engine._plan.policy.subjective import compute_subjective_visibility
+from desloppify.engine._plan.reconcile_review_import import (
+    ReviewImportSyncResult,
+    sync_plan_after_review_import,
+)
+from desloppify.engine._plan.refresh_lifecycle import sync_lifecycle_phase
+from desloppify.engine._plan.sync.dimensions import sync_subjective_dimensions
+from desloppify.engine._plan.sync.workflow import (
+    ScoreSnapshot,
+    sync_communicate_score_needed,
+    sync_create_plan_needed,
+    sync_import_scores_needed,
+)
 from desloppify.engine.plan_triage import (
     TRIAGE_CMD_RUN_STAGES_CLAUDE,
     TRIAGE_CMD_RUN_STAGES_CODEX,
@@ -30,7 +50,7 @@ def _has_postflight_review_work(state: dict, *, policy) -> bool:
 
 
 def _sync_lifecycle_phase_after_import(plan: dict, state: dict, *, policy) -> bool:
-    return plan_queue_mod.sync_lifecycle_phase(
+    return sync_lifecycle_phase(
         plan,
         has_initial_reviews=bool(policy.unscored_ids),
         has_objective_backlog=bool(policy.has_objective_backlog),
@@ -54,7 +74,7 @@ def _sync_lifecycle_phase_after_import(plan: dict, state: dict, *, policy) -> bo
 
 def _print_review_import_sync(
     state: dict,
-    result: plan_queue_mod.ReviewImportSyncResult,
+    result: ReviewImportSyncResult,
     *,
     workflow_injected: bool,
 ) -> None:
@@ -92,7 +112,7 @@ def _print_stale_review_prunes(stale_pruned: list[str]) -> None:
 
 
 def _print_review_import_footer(
-    result: plan_queue_mod.ReviewImportSyncResult,
+    result: ReviewImportSyncResult,
     *,
     workflow_injected: bool,
 ) -> None:
@@ -150,28 +170,28 @@ def sync_plan_after_import(
         plan_path = None
         target_strict = target_strict_score_from_config(config)
         if state_file is not None:
-            plan_path = plan_queue_mod.plan_path_for_state(Path(state_file))
-        if not plan_queue_mod.has_living_plan(plan_path):
+            plan_path = plan_path_for_state(Path(state_file))
+        if not has_living_plan(plan_path):
             return
 
-        plan = plan_queue_mod.load_plan(plan_path)
+        plan = load_plan(plan_path)
         dirty = False
         workflow_injected_ids: list[str] = []
-        policy = plan_queue_mod.compute_subjective_visibility(
+        policy = compute_subjective_visibility(
             state,
             target_strict=target_strict,
             plan=plan,
         )
 
         snapshot = state_mod.score_snapshot(state)
-        current_scores = plan_queue_mod.ScoreSnapshot(
+        current_scores = ScoreSnapshot(
             strict=snapshot.strict,
             overall=snapshot.overall,
             objective=snapshot.objective,
             verified=snapshot.verified,
         )
         trusted_score_import = assessment_mode in {"trusted_internal", "attested_external"}
-        communicate_result = plan_queue_mod.sync_communicate_score_needed(
+        communicate_result = sync_communicate_score_needed(
             plan,
             state,
             policy=policy,
@@ -196,7 +216,7 @@ def sync_plan_after_import(
         stale_sync_result = None
         auto_cluster_changes = 0
 
-        import_scores_result = plan_queue_mod.sync_import_scores_needed(
+        import_scores_result = sync_import_scores_needed(
             plan,
             state,
             assessment_mode=assessment_mode,
@@ -208,7 +228,7 @@ def sync_plan_after_import(
             if import_scores_result.injected:
                 workflow_injected_ids.append("workflow::import-scores")
 
-        create_plan_result = plan_queue_mod.sync_create_plan_needed(
+        create_plan_result = sync_create_plan_needed(
             plan,
             state,
             policy=policy,
@@ -218,7 +238,7 @@ def sync_plan_after_import(
             workflow_injected_ids.append("workflow::create-plan")
 
         if has_review_issue_delta:
-            import_result = plan_queue_mod.sync_plan_after_review_import(
+            import_result = sync_plan_after_review_import(
                 plan,
                 state,
                 policy=policy,
@@ -231,7 +251,7 @@ def sync_plan_after_import(
             # even when they add no review findings. Keep queue_order aligned
             # first, then rebuild the derived auto-clusters from that queue.
             cycle_just_completed = not plan.get("plan_start_scores")
-            stale_sync_result = plan_queue_mod.sync_subjective_dimensions(
+            stale_sync_result = sync_subjective_dimensions(
                 plan,
                 state,
                 policy=policy,
@@ -240,7 +260,7 @@ def sync_plan_after_import(
             if stale_sync_result.changes:
                 dirty = True
 
-            auto_cluster_changes = int(plan_queue_mod.auto_cluster_issues(
+            auto_cluster_changes = int(auto_cluster_issues(
                 plan,
                 state,
                 target_strict=target_strict,
@@ -253,14 +273,14 @@ def sync_plan_after_import(
             if _sync_lifecycle_phase_after_import(plan, state, policy=policy):
                 dirty = True
             if communicate_result.changes:
-                plan_queue_mod.append_log_entry(
+                append_log_entry(
                     plan,
                     "sync_communicate_score",
                     actor="system",
                     detail={"trigger": "review_import", "injected": True},
                 )
             if import_scores_result.changes:
-                plan_queue_mod.append_log_entry(
+                append_log_entry(
                     plan,
                     "sync_import_scores",
                     actor="system",
@@ -271,14 +291,14 @@ def sync_plan_after_import(
                     },
                 )
             if create_plan_result.changes:
-                plan_queue_mod.append_log_entry(
+                append_log_entry(
                     plan,
                     "sync_create_plan",
                     actor="system",
                     detail={"trigger": "review_import", "injected": True},
                 )
             if import_result is not None or workflow_injected_ids or covered_ids:
-                plan_queue_mod.append_log_entry(
+                append_log_entry(
                     plan,
                     "review_import_sync",
                     actor="system",
@@ -316,7 +336,7 @@ def sync_plan_after_import(
                         "auto_cluster_changes": auto_cluster_changes,
                     },
                 )
-            plan_queue_mod.save_plan(plan, plan_path)
+            save_plan(plan, plan_path)
 
         if import_result is not None:
             _print_review_import_sync(

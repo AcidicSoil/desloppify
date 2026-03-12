@@ -106,6 +106,23 @@ def _apply_persisted_exclusions(
     )
 
 
+def _project_root_from_state_path(state_path_value: str | Path | None) -> Path | None:
+    """Infer project root from an explicit state path under ``.desloppify``."""
+    if state_path_value in (None, ""):
+        return None
+    try:
+        state_file = Path(state_path_value).resolve()
+    except OSError:
+        return None
+    if state_file.parent.name != ".desloppify":
+        return None
+    if state_file.name == "state.json" or (
+        state_file.name.startswith("state-") and state_file.suffix == ".json"
+    ):
+        return state_file.parent.parent
+    return None
+
+
 def _resolve_default_path(args: argparse.Namespace) -> None:
     """Fill args.path from detected language or default source path.
 
@@ -246,7 +263,10 @@ def main() -> None:
         return
 
     try:
-        with runtime_scope():
+        with runtime_scope() as runtime:
+            inferred = _project_root_from_state_path(getattr(args, "state", None))
+            if inferred is not None:
+                runtime.project_root = inferred
             _warn_if_running_installed_package_from_checkout()
             _resolve_default_path(args)
             _load_shared_runtime(args)

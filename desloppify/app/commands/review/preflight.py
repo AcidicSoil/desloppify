@@ -13,7 +13,6 @@ import sys
 from desloppify.app.commands.helpers.query import load_query_result
 from desloppify.base.exception_sets import CommandError
 from desloppify.base.output.terminal import colorize
-from desloppify.engine._work_queue.core import QueueBuildOptions, build_work_queue
 from desloppify.engine._work_queue.context import queue_context
 from desloppify.state_io import StateModel, save_state
 
@@ -128,19 +127,9 @@ def _objective_and_subjective_backlog(
 ) -> tuple[int, int]:
     ctx = queue_context(state)
     if not blocking_dims:
-        return ctx.policy.objective_count, 0
+        return ctx.snapshot.planned_objective_count, 0
 
     normalized_blocking_dims = {_normalize_dimension_key(dim) for dim in blocking_dims}
-    queue = build_work_queue(
-        state,
-        options=QueueBuildOptions(
-            count=None,
-            status="open",
-            include_skipped=False,
-            include_subjective=True,
-            context=ctx,
-        ),
-    )
 
     def _item_dimension_key(item: dict) -> str | None:
         detail = item.get("detail")
@@ -151,33 +140,14 @@ def _objective_and_subjective_backlog(
             return None
         return _normalize_dimension_key(dimension)
 
-    objective_total = 0
-    subjective_total = 0
-    saw_scoped_objective = False
-    saw_review_phase_item = False
-    for item in queue.get("items", []):
-        detector = str(item.get("detector", ""))
-        dim_key = _item_dimension_key(item)
-        if detector in {"subjective_assessment", "subjective_review"}:
-            if dim_key is None or dim_key in normalized_blocking_dims:
-                saw_review_phase_item = True
-            continue
-        if detector in {"review", "concerns"}:
-            if not dim_key or dim_key not in normalized_blocking_dims:
-                continue
-            subjective_total += 1
-            continue
-        if not dim_key:
-            continue
-        saw_scoped_objective = True
-        if dim_key not in normalized_blocking_dims:
-            continue
-        objective_total += 1
-
-    if not saw_scoped_objective and not saw_review_phase_item:
-        objective_total = ctx.policy.objective_count
-
-    return objective_total, subjective_total
+    subjective_total = sum(
+        1
+        for item in ctx.snapshot.all_postflight_review_items
+        if item.get("kind") != "subjective_dimension"
+        if (dim_key := _item_dimension_key(item)) is not None
+        and dim_key in normalized_blocking_dims
+    )
+    return ctx.snapshot.planned_objective_count, subjective_total
 
 
 def _print_backlog_blocked_message(

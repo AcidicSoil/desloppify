@@ -139,33 +139,32 @@ class TestQueueContextTargetStrict:
 # ---------------------------------------------------------------------------
 
 class TestQueueContextPolicy:
-    def test_policy_computed_with_resolved_params(self):
-        """Policy uses the resolved plan and target_strict."""
+    def test_snapshot_respects_resolved_plan(self):
+        """Snapshot uses the resolved plan and target_strict."""
         state = _state_with_issues(_issue("f1"))
         plan = {"skipped": {"f1": {"kind": "temporary"}}}
         ctx = queue_context(state, plan=plan, target_strict=80.0)
-        # f1 is skipped by plan, so objective_count should be 0
-        assert ctx.policy.objective_count == 0
-        assert ctx.policy.has_objective_backlog is False
+        assert ctx.snapshot.objective_in_scope_count == 0
+        assert ctx.snapshot.objective_execution_count == 0
 
-    def test_policy_counts_objective_issues(self):
-        """Policy correctly counts open objective issues."""
+    def test_snapshot_counts_objective_issues(self):
+        """Snapshot correctly counts open objective issues."""
         state = _state_with_issues(
             _issue("f1"),
             _issue("f2"),
         )
         ctx = queue_context(state, plan=None)
-        assert ctx.policy.objective_count == 2
-        assert ctx.policy.has_objective_backlog is True
+        assert ctx.snapshot.objective_in_scope_count == 2
+        assert ctx.snapshot.objective_execution_count == 2
 
-    def test_policy_excludes_subjective_detectors(self):
+    def test_snapshot_excludes_subjective_detectors(self):
         """Issues from subjective detectors don't count as objective."""
         state = _state_with_issues(
             _issue("f1", detector="unused"),
             _issue("f2", detector="review"),
         )
         ctx = queue_context(state, plan=None)
-        assert ctx.policy.objective_count == 1
+        assert ctx.snapshot.objective_in_scope_count == 1
 
 
 # ---------------------------------------------------------------------------
@@ -216,13 +215,8 @@ class TestQueueContextIntegration:
         ids = {item["id"] for item in items}
         assert "f1" in ids
 
-    def test_build_work_queue_lifecycle_filter_uses_pipeline_items(self):
-        """Lifecycle filter operates on pipeline items, not raw state.
-
-        The queue no longer computes SubjectiveVisibility policy during
-        build — lifecycle gating is done by _apply_lifecycle_filter on
-        the items that survived prior pipeline stages.
-        """
+    def test_build_work_queue_uses_snapshot_resolver(self):
+        """build_work_queue succeeds with a precomputed QueueContext snapshot."""
         from desloppify.engine._work_queue.core import (
             QueueBuildOptions,
             build_work_queue,

@@ -15,7 +15,7 @@ from desloppify.engine.plan_ops import (
     auto_complete_steps,
     purge_ids,
 )
-from desloppify.engine.plan_queue import clear_postflight_scan_completion
+from desloppify.engine._plan.refresh_lifecycle import clear_postflight_scan_completion
 from desloppify.engine.plan_state import (
     add_uncommitted_issues,
     has_living_plan,

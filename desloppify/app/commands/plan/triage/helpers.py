@@ -13,10 +13,12 @@ from desloppify.engine.plan_state import (
     PlanModel,
 )
 from desloppify.engine.plan_ops import purge_ids
-from desloppify.engine.plan_queue import (
+from desloppify.engine._plan.constants import (
     WORKFLOW_CREATE_PLAN_ID,
     WORKFLOW_SCORE_CHECKPOINT_ID,
     normalize_queue_workflow_and_triage_prefix,
+)
+from desloppify.engine._plan.policy.stale import (
     open_review_ids,
     review_issue_snapshot_hash,
 )

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from desloppify.base.output.terminal import colorize
-from desloppify.engine.plan_queue import (
+from desloppify.engine._plan.constants import (
     confirmed_triage_stage_names,
     recorded_unconfirmed_triage_stage_names,
 )

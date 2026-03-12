@@ -56,6 +56,7 @@ subcommands:
   note       Set note on issues
   skip       Skip issues (temporary/permanent/false_positive)
   unskip     Bring skipped issues back to queue
+  backlog    Move deferred items to backlog (remove from plan)
   reopen     Reopen resolved issues
   focus      Set or clear active cluster focus
   cluster    Manage issue clusters

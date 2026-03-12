@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from desloppify.base.config import DEFAULT_TARGET_STRICT_SCORE
 from desloppify.base.enums import Status
 from desloppify.base.registry import DETECTORS
+from desloppify.engine._plan.schema import planned_objective_ids as _planned_objective_ids
 from desloppify.engine._state.filtering import issue_in_scan_scope
 from desloppify.engine._state.schema import StateModel
 from desloppify.engine.planning.helpers import CONFIDENCE_ORDER
@@ -113,8 +114,8 @@ def compute_subjective_visibility(
     # excluded — they still affect scores but are not actionable queue items.
     # Issues outside scan_path and plan-skipped issues are also excluded
     # so the policy matches what the user actually sees in the queue.
-    objective_count = sum(
-        1
+    objective_issue_ids = [
+        issue_id
         for issue_id, issue in issues.items()
         if issue.get("status") == Status.OPEN
         and issue.get("detector") not in NON_OBJECTIVE_DETECTORS
@@ -122,7 +123,11 @@ def compute_subjective_visibility(
         and not _is_evidence_only(issue)
         and issue_in_scan_scope(str(issue.get("file", "")), resolved_scan_path)
         and issue_id not in skipped_ids
-    )
+    ]
+
+    # When the plan has tracked objectives (post-triage), only count
+    # planned items — unplanned items are backlog, not blocking work.
+    objective_count = len(_planned_objective_ids(set(objective_issue_ids), plan))
 
     unscored = current_unscored_ids(state)
     stale = current_stale_ids(state)

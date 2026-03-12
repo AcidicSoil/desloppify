@@ -69,6 +69,16 @@ def _add_skip_subparsers(plan_sub) -> None:
         help="Also unskip protected items (permanent/false_positive with notes)",
     )
 
+    # plan backlog <patterns>
+    p_backlog = plan_sub.add_parser(
+        "backlog",
+        help="Move deferred items to backlog (remove from plan tracking entirely)",
+    )
+    p_backlog.add_argument(
+        "patterns", nargs="+", metavar="PATTERN",
+        help="Issue ID(s), detector, file path, glob, or cluster name",
+    )
+
 
 def _add_resolve_subparser(plan_sub) -> None:
     # plan reopen <patterns>

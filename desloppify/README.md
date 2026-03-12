@@ -27,7 +27,8 @@ desloppify/
 │   ├── plan.py         # Compatibility shim over plan facades
 │   ├── plan_state.py   # Public plan state/schema/policy facade
 │   ├── plan_ops.py     # Public plan mutation facade
-│   ├── plan_queue.py   # Public queue/sync/reconcile facade
+│   ├── _plan/         # Plan persistence, sync, lifecycle internals
+│   ├── _work_queue/   # Canonical queue snapshot and queue assembly
 │   ├── plan_triage.py  # Public triage commands/prompts facade
 │   ├── planning/       # Prioritization and plan generation
 │   ├── policy/         # Zones, scoring policy
@@ -94,7 +95,7 @@ detect:  LangConfig.detect_commands[name](args) → display
 ## Rules
 
 - Entry command modules stay thin — behavioral logic in delegated modules
-- Prefer narrow plan facades (`engine.plan_state`, `engine.plan_ops`, `engine.plan_queue`, `engine.plan_triage`) over `engine.plan` in new code
+- Prefer narrow plan surfaces (`engine.plan_state`, `engine.plan_ops`, `engine.plan_triage`, `engine.planning`) over `engine.plan` in new code
 - Dynamic imports only in `languages/__init__.py` (discovery) and `engine/hook_registry.py` (hooks)
 - Persistent schema is owned by `engine/_state/`; `state.py` is compatibility-only. Command modules don't introduce ad-hoc persisted fields
 - `LangRun` owns per-run mutable state, not `LangConfig`

@@ -23,7 +23,7 @@ from desloppify.engine.plan_ops import (
     auto_complete_steps,
     purge_ids,
 )
-from desloppify.engine.plan_queue import (
+from desloppify.engine._plan.constants import (
     WORKFLOW_CREATE_PLAN_ID,
     WORKFLOW_SCORE_CHECKPOINT_ID,
     confirmed_triage_stage_names,

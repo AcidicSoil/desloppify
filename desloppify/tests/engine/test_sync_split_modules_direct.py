@@ -15,7 +15,7 @@ import desloppify.engine._plan.sync.workflow as sync_workflow_mod
 import desloppify.engine._plan.triage.dismiss as triage_dismiss_mod
 import desloppify.engine._plan.triage.playbook as triage_playbook_mod
 import desloppify.engine._scoring.state_integration_subjective as scoring_subjective_mod
-import desloppify.engine._work_queue.lifecycle as lifecycle_mod
+import desloppify.engine._work_queue.snapshot as snapshot_mod
 
 
 def test_sync_context_helpers_cover_policy_and_fallback_paths() -> None:
@@ -611,174 +611,130 @@ def test_subjective_integrity_helpers_apply_penalty_threshold(monkeypatch) -> No
     assert scoring_subjective_mod._normalize_integrity_target(None) is None
 
 
-def test_lifecycle_filter_respects_initial_reviews_triage_and_endgame_rules() -> None:
-    initial_items = [
-        {"kind": "subjective_dimension", "id": "subjective::naming", "initial_review": True},
-        {"kind": "issue", "id": "unused::a", "detector": "unused"},
-    ]
-    filtered_initial = lifecycle_mod.apply_lifecycle_filter(initial_items)
-    assert filtered_initial == [initial_items[0]]
-
-    triage_and_objective = [
-        {"kind": "workflow_stage", "id": "triage::observe"},
-        {"kind": "issue", "id": "unused::a", "detector": "unused"},
-        {"kind": "subjective_dimension", "id": "subjective::naming", "initial_review": False},
-    ]
-    filtered_mid = lifecycle_mod.apply_lifecycle_filter(triage_and_objective)
-    assert all(not str(item.get("id", "")).startswith("triage::") for item in filtered_mid)
-    assert all(item.get("kind") != "subjective_dimension" for item in filtered_mid)
-
-    scan_before_every_postflight_phase = [
-        {"kind": "workflow_action", "id": "workflow::run-scan"},
-        {"kind": "workflow_action", "id": "workflow::communicate-score"},
-        {"kind": "workflow_stage", "id": "triage::observe"},
-        {"kind": "issue", "id": "review::src/a.py::naming", "detector": "review"},
-    ]
-    filtered_scan_phase = lifecycle_mod.apply_lifecycle_filter(
-        scan_before_every_postflight_phase
-    )
-    assert filtered_scan_phase == [scan_before_every_postflight_phase[0]]
-
-    subjective_before_score_and_triage = [
-        {"kind": "workflow_action", "id": "workflow::communicate-score"},
-        {"kind": "workflow_stage", "id": "triage::observe"},
-        {"kind": "issue", "id": "review::src/a.py::naming", "detector": "review"},
-    ]
-    filtered_subjective_phase = lifecycle_mod.apply_lifecycle_filter(
-        subjective_before_score_and_triage
-    )
-    assert filtered_subjective_phase == [subjective_before_score_and_triage[2]]
-
-    workflow_before_triage = [
-        {"kind": "workflow_action", "id": "workflow::communicate-score"},
-        {"kind": "workflow_stage", "id": "triage::observe"},
-    ]
-    filtered_workflow_phase = lifecycle_mod.apply_lifecycle_filter(workflow_before_triage)
-    assert filtered_workflow_phase == [workflow_before_triage[0]]
-
-    triage_only_items = [
-        {"kind": "workflow_stage", "id": "triage::observe"},
-        {"kind": "workflow_action", "id": "workflow::deferred-disposition"},
-    ]
-    filtered_deferred_phase = lifecycle_mod.apply_lifecycle_filter(triage_only_items)
-    assert filtered_deferred_phase == [triage_only_items[1]]
-
-    forced_items = [
-        {
-            "kind": "workflow_stage",
-            "id": "triage::observe",
-            "force_visible": True,
+def test_queue_snapshot_enforces_phase_boundaries() -> None:
+    state = {
+        "issues": {
+            "unused::a": {
+                "id": "unused::a",
+                "detector": "unused",
+                "status": "open",
+                "file": "src/a.py",
+                "tier": 1,
+                "confidence": "high",
+                "summary": "unused import",
+                "detail": {},
+            }
         },
-        {"kind": "issue", "id": "unused::a", "detector": "unused"},
-        {
-            "kind": "subjective_dimension",
-            "id": "subjective::naming",
-            "initial_review": False,
-            "force_visible": True,
+        "dimension_scores": {
+            "Naming quality": {
+                "score": 0.0,
+                "strict": 0.0,
+                "failing": 0,
+                "detectors": {"subjective_assessment": {"dimension_key": "naming_quality"}},
+            }
         },
-    ]
-    filtered_forced = lifecycle_mod.apply_lifecycle_filter(forced_items)
-    forced_ids = {str(item.get("id", "")) for item in filtered_forced}
-    assert "triage::observe" in forced_ids
-    assert "subjective::naming" in forced_ids
-
-
-def test_lifecycle_filter_treats_clusters_as_objective() -> None:
-    """Clusters containing objective issues should prevent triage from forcing."""
-    items = [
-        {"kind": "workflow_stage", "id": "triage::observe"},
-        {"kind": "cluster", "id": "auto/complexity_reduction", "detector": "complexity"},
-    ]
-    filtered = lifecycle_mod.apply_lifecycle_filter(items)
-    # Cluster is objective work — triage should be hidden, cluster shown
-    assert any(item["kind"] == "cluster" for item in filtered)
-    assert all(not str(item.get("id", "")).startswith("triage::") for item in filtered)
-
-
-def test_lifecycle_filter_forces_triage_when_only_subjective_clusters() -> None:
-    """Subjective review clusters should surface before triage once scan is done."""
-    items = [
-        {"kind": "workflow_stage", "id": "triage::observe"},
-        {"kind": "cluster", "id": "auto/subjective_review", "detector": "subjective_assessment"},
-    ]
-    filtered = lifecycle_mod.apply_lifecycle_filter(items)
-    assert filtered == [items[1]]
-
-
-def test_resolve_lifecycle_phase_corrects_stale_persisted_execute_state() -> None:
-    items = [{"kind": "workflow_action", "id": "workflow::run-scan"}]
-    plan = {"refresh_state": {"lifecycle_phase": "execute"}}
-
-    phase = lifecycle_mod.resolve_lifecycle_phase(items, plan=plan)
-
-    assert phase == "scan"
-
-
-def test_postflight_non_objective_detectors_match_non_objective_policy() -> None:
-    """Post-flight non-objective detectors should match the shared policy."""
-    from desloppify.engine.plan_queue import NON_OBJECTIVE_DETECTORS
-
-    assert lifecycle_mod.POSTFLIGHT_NON_OBJECTIVE_DETECTORS <= NON_OBJECTIVE_DETECTORS
-    assert lifecycle_mod.POSTFLIGHT_NON_OBJECTIVE_DETECTORS == NON_OBJECTIVE_DETECTORS
-
-
-def test_is_postflight_non_objective_item_uses_postflight_detector_set() -> None:
-    """Non-initial post-flight items should match the shared detector set."""
-    for det in lifecycle_mod.POSTFLIGHT_NON_OBJECTIVE_DETECTORS:
-        item = {"kind": "issue", "id": f"{det}::x", "detector": det}
-        assert lifecycle_mod._is_postflight_non_objective_item(item) is True
-    initial_review = {
-        "kind": "subjective_dimension",
-        "id": "subjective::naming",
-        "detector": "subjective_assessment",
-        "initial_review": True,
     }
-    assert lifecycle_mod._is_postflight_non_objective_item(initial_review) is False
+    initial = snapshot_mod.build_queue_snapshot(state, plan=None)
+    assert initial.phase == snapshot_mod.PHASE_REVIEW_INITIAL
+    assert [item["id"] for item in initial.execution_items] == ["subjective::naming_quality"]
 
-
-def test_lifecycle_filter_hides_subjective_review_issue_while_objective_work_exists() -> None:
-    items = [
-        {"kind": "issue", "id": "unused::a", "detector": "unused"},
+    execute = snapshot_mod.build_queue_snapshot(
         {
-            "kind": "issue",
-            "id": "subjective_review::src/a.py::changed",
-            "detector": "subjective_review",
+            **state,
+            "dimension_scores": {
+                "Naming quality": {
+                    "score": 70.0,
+                    "strict": 70.0,
+                    "failing": 1,
+                    "detectors": {"subjective_assessment": {"dimension_key": "naming_quality"}},
+                }
+            },
+            "subjective_assessments": {
+                "naming_quality": {"score": 70.0, "needs_review_refresh": True}
+            },
         },
-    ]
-
-    filtered = lifecycle_mod.apply_lifecycle_filter(items)
-
-    ids = {str(item.get("id", "")) for item in filtered}
-    assert "unused::a" in ids
-    assert "subjective_review::src/a.py::changed" not in ids
-
-
-def test_lifecycle_filter_hides_subjective_review_cluster_while_objective_work_exists() -> None:
-    items = [
-        {"kind": "issue", "id": "unused::a", "detector": "unused"},
-        {"kind": "cluster", "id": "auto/subjective_review", "detector": "subjective_review"},
-    ]
-
-    filtered = lifecycle_mod.apply_lifecycle_filter(items)
-
-    ids = {str(item.get("id", "")) for item in filtered}
-    assert "unused::a" in ids
-    assert "auto/subjective_review" not in ids
+        plan={"queue_order": ["triage::observe"], "plan_start_scores": {"strict": 75.0}},
+    )
+    assert execute.phase == snapshot_mod.PHASE_EXECUTE
+    assert [item["id"] for item in execute.execution_items] == ["unused::a"]
+    backlog_ids = {item["id"] for item in execute.backlog_items}
+    assert "triage::observe" in backlog_ids
+    assert "subjective::naming_quality" in backlog_ids
 
 
-def test_lifecycle_filter_shows_subjective_review_when_objective_queue_is_drained() -> None:
-    items = [
-        {"kind": "workflow_stage", "id": "triage::observe"},
-        {
-            "kind": "issue",
-            "id": "subjective_review::src/a.py::changed",
-            "detector": "subjective_review",
+def test_queue_snapshot_orders_scan_review_and_workflow_postflight() -> None:
+    review_state = {
+        "issues": {
+            "review::src/a.py::naming": {
+                "id": "review::src/a.py::naming",
+                "detector": "review",
+                "status": "open",
+                "file": "src/a.py",
+                "tier": 1,
+                "confidence": "high",
+                "summary": "review finding",
+                "detail": {"dimension": "naming_quality"},
+            }
+        }
+    }
+    scan_plan = {
+        "queue_order": ["workflow::run-scan", "workflow::communicate-score", "triage::observe"],
+        "plan_start_scores": {"strict": 80.0},
+    }
+    scan_snapshot = snapshot_mod.build_queue_snapshot(review_state, plan=scan_plan)
+    assert scan_snapshot.phase == snapshot_mod.PHASE_SCAN
+    assert [item["id"] for item in scan_snapshot.execution_items] == ["workflow::run-scan"]
+
+    review_plan = {
+        "queue_order": ["workflow::communicate-score", "triage::observe"],
+        "plan_start_scores": {"strict": 80.0},
+        "refresh_state": {"postflight_scan_completed_at_scan_count": 1},
+    }
+    review_snapshot = snapshot_mod.build_queue_snapshot(review_state, plan=review_plan)
+    assert review_snapshot.phase == snapshot_mod.PHASE_REVIEW_POSTFLIGHT
+    assert [item["id"] for item in review_snapshot.execution_items] == ["review::src/a.py::naming"]
+
+    workflow_snapshot = snapshot_mod.build_queue_snapshot(
+        {"issues": {}},
+        plan={
+            "queue_order": ["workflow::communicate-score", "triage::observe"],
+            "refresh_state": {"postflight_scan_completed_at_scan_count": 1},
         },
-    ]
+    )
+    assert workflow_snapshot.phase == snapshot_mod.PHASE_WORKFLOW_POSTFLIGHT
+    assert [item["id"] for item in workflow_snapshot.execution_items] == ["workflow::communicate-score"]
 
-    filtered = lifecycle_mod.apply_lifecycle_filter(items)
 
-    assert filtered == [items[1]]
+def test_queue_snapshot_prefers_deferred_disposition_over_run_scan() -> None:
+    plan = {
+        "queue_order": [],
+        "skipped": {"unused::a": {"kind": "temporary"}},
+        "plan_start_scores": {"strict": 75.0},
+    }
+    state = {
+        "issues": {
+            "unused::a": {
+                "id": "unused::a",
+                "detector": "unused",
+                "status": "open",
+                "file": "src/a.py",
+                "tier": 1,
+                "confidence": "high",
+                "summary": "unused import",
+                "detail": {},
+            }
+        }
+    }
+    snapshot = snapshot_mod.build_queue_snapshot(state, plan=plan)
+    assert snapshot.phase == snapshot_mod.PHASE_SCAN
+    assert [item["id"] for item in snapshot.execution_items] == ["workflow::deferred-disposition"]
+
+
+def test_coarse_phase_name_collapses_internal_review_workflow_and_triage() -> None:
+    assert snapshot_mod.coarse_phase_name(snapshot_mod.PHASE_REVIEW_INITIAL) == "review"
+    assert snapshot_mod.coarse_phase_name(snapshot_mod.PHASE_REVIEW_POSTFLIGHT) == "review"
+    assert snapshot_mod.coarse_phase_name(snapshot_mod.PHASE_WORKFLOW_POSTFLIGHT) == "workflow"
+    assert snapshot_mod.coarse_phase_name(snapshot_mod.PHASE_TRIAGE_POSTFLIGHT) == "triage"
 
 
 def test_triage_playbook_commands_cover_runner_and_stage_validation() -> None:

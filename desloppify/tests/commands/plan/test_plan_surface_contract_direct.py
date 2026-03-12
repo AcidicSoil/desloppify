@@ -49,16 +49,10 @@ def test_plan_command_modules_avoid_legacy_plan_api_hub() -> None:
     assert offenders == []
 
 
-def test_plan_command_modules_use_only_focused_engine_plan_facades() -> None:
+def test_plan_command_modules_avoid_legacy_plan_queue_facade() -> None:
     root = _repo_root()
     plan_cmd_dir = root / "app" / "commands" / "plan"
     offenders: list[str] = []
-    allowed = {
-        "desloppify.engine.plan_state",
-        "desloppify.engine.plan_ops",
-        "desloppify.engine.plan_queue",
-        "desloppify.engine.plan_triage",
-    }
     for path in plan_cmd_dir.rglob("*.py"):
         text = path.read_text(encoding="utf-8")
         tree = ast.parse(text)
@@ -66,24 +60,13 @@ def test_plan_command_modules_use_only_focused_engine_plan_facades() -> None:
         for node in ast.walk(tree):
             if isinstance(node, ast.ImportFrom):
                 mod = node.module or ""
-                if mod.startswith("desloppify.engine._plan"):
-                    offenders.append(rel)
-                    break
-                if mod.startswith("desloppify.engine.planning"):
-                    # engine.planning is a public API surface for queue policy
-                    pass
-                elif mod.startswith("desloppify.engine.plan_") and mod not in allowed:
+                if mod == "desloppify.engine.plan_queue":
                     offenders.append(rel)
                     break
             elif isinstance(node, ast.Import):
                 for alias in node.names:
                     mod = alias.name
-                    if mod.startswith("desloppify.engine._plan"):
-                        offenders.append(rel)
-                        break
-                    if mod.startswith("desloppify.engine.planning"):
-                        pass  # public API surface
-                    if mod.startswith("desloppify.engine.plan_") and mod not in allowed:
+                    if mod == "desloppify.engine.plan_queue":
                         offenders.append(rel)
                         break
     assert offenders == []

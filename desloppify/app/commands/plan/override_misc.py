@@ -26,7 +26,7 @@ from desloppify.engine.plan_ops import (
     describe_issue,
     set_focus,
 )
-from desloppify.engine.plan_queue import clear_postflight_scan_completion
+from desloppify.engine._plan.refresh_lifecycle import clear_postflight_scan_completion
 
 
 def cmd_plan_describe(args: argparse.Namespace) -> None:

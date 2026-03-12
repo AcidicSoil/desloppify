@@ -13,25 +13,32 @@ from desloppify.base.config import DEFAULT_TARGET_STRICT_SCORE
 from desloppify.base.exception_sets import PLAN_LOAD_EXCEPTIONS
 from desloppify.base.output.fallbacks import log_best_effort_failure
 from desloppify.base.output.terminal import colorize
-from desloppify.engine.plan_queue import (
-    LIFECYCLE_PHASE_SCAN,
+from desloppify.engine._plan.auto_cluster import auto_cluster_issues
+from desloppify.engine._plan.constants import (
     SYNTHETIC_PREFIXES,
-    ScoreSnapshot,
     WORKFLOW_COMMUNICATE_SCORE_ID,
-    append_log_entry,
-    auto_cluster_issues,
-    compute_subjective_visibility,
-    is_mid_cycle,
+)
+from desloppify.engine._plan.operations.meta import append_log_entry
+from desloppify.engine._plan.persistence import (
     load_plan,
-    mark_postflight_scan_completed,
-    reconcile_plan_after_scan,
     save_plan,
-    sync_lifecycle_phase,
+)
+from desloppify.engine._plan.policy.subjective import compute_subjective_visibility
+from desloppify.engine._plan.reconcile import reconcile_plan_after_scan
+from desloppify.engine._plan.refresh_lifecycle import (
+    mark_postflight_scan_completed,
+)
+from desloppify.engine._plan.sync.context import is_mid_cycle
+from desloppify.engine._plan.sync.dimensions import sync_subjective_dimensions
+from desloppify.engine._plan.sync.triage import sync_triage_needed
+from desloppify.engine._plan.sync.workflow import (
+    ScoreSnapshot,
     sync_communicate_score_needed,
     sync_create_plan_needed,
-    sync_subjective_dimensions,
-    sync_triage_needed,
 )
+from desloppify.engine._plan.refresh_lifecycle import set_lifecycle_phase
+from desloppify.engine._work_queue.context import queue_context
+from desloppify.engine._work_queue.snapshot import coarse_phase_name
 from desloppify.engine.work_queue import build_deferred_disposition_item
 
 logger = logging.getLogger(__name__)
@@ -430,19 +437,9 @@ def _has_triage_items(plan: dict[str, object]) -> bool:
 def _sync_lifecycle_phase_and_log(
     plan: dict[str, object],
     state: state_mod.StateModel,
-    *,
-    policy,
 ) -> bool:
-    has_deferred = build_deferred_disposition_item(plan) is not None
-    phase, changed = sync_lifecycle_phase(
-        plan,
-        has_initial_reviews=bool(policy.unscored_ids),
-        has_objective_backlog=bool(policy.has_objective_backlog),
-        has_postflight_review=_has_postflight_review_work(state, policy=policy),
-        has_postflight_workflow=_has_postflight_workflow_items(plan),
-        has_triage=_has_triage_items(plan),
-        has_deferred=has_deferred,
-    )
+    phase = coarse_phase_name(queue_context(state, plan=plan).snapshot.phase)
+    changed = set_lifecycle_phase(plan, phase)
     if changed:
         append_log_entry(
             plan,
@@ -534,7 +531,7 @@ def _sync_post_scan_with_policy(
             dirty = True
         if _sync_postflight_scan_completion_and_log(plan, state):
             dirty = True
-    if _sync_lifecycle_phase_and_log(plan, state, policy=policy):
+    if _sync_lifecycle_phase_and_log(plan, state):
         dirty = True
     return dirty
 

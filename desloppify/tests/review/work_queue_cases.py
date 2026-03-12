@@ -345,7 +345,7 @@ def test_holistic_subjective_review_issue_points_to_holistic_refresh():
 def test_queue_build_options_defaults():
     opts = QueueBuildOptions()
     assert opts.count == 1
-    from desloppify.engine._work_queue.core import _SCAN_PATH_FROM_STATE
+    from desloppify.engine._work_queue.models import _SCAN_PATH_FROM_STATE
     assert opts.scan_path is _SCAN_PATH_FROM_STATE
     assert opts.scope is None
     assert opts.status == "open"
@@ -834,4 +834,3 @@ def test_registry_standalone_threshold_count():
     assert sorted(threshold_detectors) == sorted([
         "props", "patterns", "naming", "react", "smells", "dupes", "dict_keys",
     ])
-

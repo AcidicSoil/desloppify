@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -299,6 +300,9 @@ def test_plan_aware_queue_breakdown_basic():
     with patch(
         "desloppify.app.commands.helpers.queue_progress.build_execution_queue",
         return_value=mock_result,
+    ), patch(
+        "desloppify.app.commands.helpers.queue_progress.queue_context",
+        return_value=SimpleNamespace(snapshot=SimpleNamespace(phase="execute")),
     ):
         breakdown = plan_aware_queue_breakdown({"issues": {}}, plan=plan)
     assert breakdown.queue_total == 50

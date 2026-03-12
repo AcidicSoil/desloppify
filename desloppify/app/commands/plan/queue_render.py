@@ -22,7 +22,7 @@ from desloppify.engine._work_queue.plan_order import (
 )
 from desloppify.engine.plan_state import load_plan
 from desloppify.engine.planning.queue_policy import build_execution_queue
-from desloppify.engine.plan_queue import compute_new_issue_ids
+from desloppify.engine._plan.sync.triage import compute_new_issue_ids
 
 
 def _truncate(text: str, width: int) -> str:

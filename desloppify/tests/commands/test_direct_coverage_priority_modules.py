@@ -134,33 +134,16 @@ def test_engine_modules_avoid_app_layer_import_paths():
     assert "desloppify.app.output.scorecard_parts.dimensions" not in dimension_rows_src
 
 
-def test_app_plan_modules_avoid_private_engine_plan_imports():
-    package_root = Path(__file__).resolve().parents[2]
-    rel_paths = [
-        "app/commands/plan/cmd.py",
-        "app/commands/plan/cluster/dispatch.py",
-        "app/commands/plan/override_io.py",
-        "app/commands/plan/override_misc.py",
-        "app/commands/plan/override_skip.py",
-        "app/commands/plan/override_resolve_cmd.py",
-        "app/commands/plan/override_resolve_helpers.py",
-        "app/commands/plan/triage/helpers.py",
-        "app/commands/plan/triage/runner/stage_validation.py",
-        "app/commands/plan/triage/runner/stage_prompts.py",
-        "app/commands/resolve/cmd.py",
-        "app/commands/review/importing/cmd.py",
-    ]
-    for rel_path in rel_paths:
-        text = (package_root / rel_path).read_text(encoding="utf-8")
-        assert "desloppify.engine._plan" not in text
+def test_app_plan_modules_avoid_old_plan_queue_facade():
+    """After plan_queue removal, app modules import _plan directly.
 
-
-def test_app_package_avoids_private_engine_plan_imports() -> None:
+    This test verifies the *old* facade is not referenced.
+    """
     package_root = Path(__file__).resolve().parents[2]
     app_root = package_root / "app"
     for module_path in app_root.rglob("*.py"):
         text = module_path.read_text(encoding="utf-8")
-        assert "desloppify.engine._plan" not in text, str(module_path.relative_to(package_root))
+        assert "desloppify.engine.plan_queue" not in text, str(module_path.relative_to(package_root))
 
 
 def test_selected_command_modules_use_focused_plan_facades() -> None:

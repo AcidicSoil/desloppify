@@ -7,13 +7,22 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from desloppify import state as state_mod
-import desloppify.engine.plan_queue as plan_queue_mod
 from desloppify.app.commands.scan.reporting import (
     dimensions as reporting_dimensions_mod,
 )
 from desloppify.app.commands.scan.artifacts import emit_scorecard_badge
 from desloppify.base.exception_sets import CommandError, PacketValidationError
 from desloppify.base.output.terminal import colorize
+from desloppify.engine._plan.constants import WORKFLOW_IMPORT_SCORES_ID
+from desloppify.engine._plan.persistence import (
+    has_living_plan,
+    load_plan,
+    plan_path_for_state,
+)
+from desloppify.engine._plan.sync.workflow import (
+    import_scores_meta_matches,
+    pending_import_scores_meta,
+)
 from desloppify.intelligence import integrity as subjective_integrity_mod
 from desloppify.intelligence.review.importing.holistic import import_holistic_issues
 from desloppify.intelligence.review.importing.contracts_models import (
@@ -196,14 +205,14 @@ def _guard_pending_import_scores_match(
     """Refuse durable imports that do not match the queued score-import batch."""
     if assessment_policy.mode not in {"trusted_internal", "attested_external"}:
         return
-    plan_path = plan_queue_mod.plan_path_for_state(Path(state_file))
-    if not plan_queue_mod.has_living_plan(plan_path):
+    plan_path = plan_path_for_state(Path(state_file))
+    if not has_living_plan(plan_path):
         return
-    plan = plan_queue_mod.load_plan(plan_path)
-    if plan_queue_mod.WORKFLOW_IMPORT_SCORES_ID not in plan.get("queue_order", []):
+    plan = load_plan(plan_path)
+    if WORKFLOW_IMPORT_SCORES_ID not in plan.get("queue_order", []):
         return
-    pending_meta = plan_queue_mod.pending_import_scores_meta(plan, state)
-    matches, reason = plan_queue_mod.import_scores_meta_matches(
+    pending_meta = pending_import_scores_meta(plan, state)
+    matches, reason = import_scores_meta_matches(
         pending_meta,
         import_file=import_file,
         import_payload=issues_data,
