@@ -20,6 +20,21 @@ from desloppify.languages._framework.discovery import load_all
 # ── register_lang ────────────────────────────────────────────
 
 
+def test_legacy_framework_exports_are_lazy_compatibility_lookups():
+    """Legacy framework modules stay available without becoming live-bound exports."""
+    assert "discovery" not in vars(lang_mod)
+    assert "registry_state" not in vars(lang_mod)
+
+    discovery_mod = lang_mod.discovery
+
+    assert callable(discovery_mod.load_all)
+    assert lang_mod.registry_state is registry_state
+    assert "discovery" not in vars(lang_mod)
+    assert "registry_state" not in vars(lang_mod)
+    assert "discovery" in dir(lang_mod)
+    assert "registry_state" in dir(lang_mod)
+
+
 def test_register_lang_adds_to_registry():
     """register_lang decorator registers a class under the given name."""
     # Use a unique name so we don't collide with real registrations

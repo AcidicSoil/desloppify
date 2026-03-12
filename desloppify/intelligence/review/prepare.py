@@ -44,6 +44,10 @@ from desloppify.intelligence.review.prepare_batches_builders import (
 from desloppify.intelligence.review.prepare_batches_builders import (
     filter_batches_to_dimensions as _filter_batches_to_dimensions,
 )
+from desloppify.intelligence.review.prepare_holistic_batches import (
+    HolisticBatchAssemblyDependencies,
+    assemble_holistic_batches,
+)
 from desloppify.intelligence.review.prepare_holistic_orchestration import (
     HolisticPrepareDependencies,
     prepare_holistic_review_payload,
@@ -238,13 +242,16 @@ def prepare_holistic_review(
         load_dimensions_for_lang_fn=load_dimensions_for_lang,
         resolve_dimensions_fn=resolve_dimensions,
         get_lang_guidance_fn=get_lang_guidance,
-        build_investigation_batches_fn=_build_investigation_batches,
-        batch_concerns_fn=_batch_concerns,
-        filter_batches_to_dimensions_fn=_filter_batches_to_dimensions,
-        append_full_sweep_batch_fn=append_full_sweep_batch,
+        assemble_holistic_batches_fn=assemble_holistic_batches,
+        holistic_batch_deps=HolisticBatchAssemblyDependencies(
+            build_investigation_batches_fn=_build_investigation_batches,
+            batch_concerns_fn=_batch_concerns,
+            filter_batches_to_dimensions_fn=_filter_batches_to_dimensions,
+            append_full_sweep_batch_fn=append_full_sweep_batch,
+            log_best_effort_failure_fn=log_best_effort_failure,
+            logger=logger,
+        ),
         serialize_context_fn=serialize_context,
-        log_best_effort_failure_fn=log_best_effort_failure,
-        logger=logger,
     )
     return prepare_holistic_review_payload(
         path,

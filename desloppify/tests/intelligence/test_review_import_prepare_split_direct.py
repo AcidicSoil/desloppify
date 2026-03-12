@@ -13,6 +13,7 @@ import desloppify.intelligence.review.importing.state_helpers as state_helpers_m
 import desloppify.intelligence.review.prepare_batches_core as prepare_batches_core_mod
 import desloppify.intelligence.review.prepare_batches_collectors_quality as collectors_quality_mod
 import desloppify.intelligence.review.prepare_batches_collectors_structure as collectors_structure_mod
+import desloppify.intelligence.review.prepare_holistic_batches as holistic_batches_mod
 import desloppify.intelligence.review.prepare_holistic_orchestration as orchestration_mod
 import desloppify.intelligence.review.prepare_holistic_payload_parts as payload_parts_mod
 import desloppify.intelligence.review.prepare_holistic_scope as scope_mod
@@ -292,6 +293,49 @@ def test_authorization_collector_includes_with_auth_siblings_same_directory() ->
         "routes/reports.py",
         "routes/users.py",
         "lib/supabase.ts",
+    ]
+
+
+def test_holistic_batch_assembly_skips_concerns_for_inactive_dimension() -> None:
+    deps = holistic_batches_mod.HolisticBatchAssemblyDependencies(
+        build_investigation_batches_fn=lambda *_args, **_kwargs: [
+            {
+                "name": "high_level_elegance",
+                "dimensions": ["high_level_elegance"],
+                "files_to_read": ["src/a.py"],
+                "why": "seed",
+            }
+        ],
+        batch_concerns_fn=lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("concern batching should stay inactive")
+        ),
+        filter_batches_to_dimensions_fn=lambda batches, _dims, **_kwargs: batches,
+        append_full_sweep_batch_fn=lambda **_kwargs: None,
+        log_best_effort_failure_fn=lambda *_args, **_kwargs: None,
+        logger=object(),
+    )
+
+    batches = holistic_batches_mod.assemble_holistic_batches(
+        {},
+        lang=SimpleNamespace(name="python"),
+        repo_root=Path("."),
+        state={},
+        dims=["high_level_elegance"],
+        all_files=["src/a.py"],
+        allowed_review_files={"src/a.py"},
+        include_full_sweep=False,
+        max_files_per_batch=10,
+        deps=deps,
+    )
+
+    assert batches == [
+        {
+            "name": "high_level_elegance",
+            "dimensions": ["high_level_elegance"],
+            "files_to_read": ["src/a.py"],
+            "why": "seed",
+            "concern_signals": [],
+        }
     ]
 
 

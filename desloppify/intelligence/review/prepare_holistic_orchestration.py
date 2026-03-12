@@ -9,6 +9,7 @@ from typing import Any
 from desloppify.intelligence.review._context.models import HolisticContext
 from desloppify.intelligence.review._prepare.helpers import HOLISTIC_WORKFLOW
 
+from .prepare_holistic_batches import HolisticBatchAssemblyDependencies
 from .prepare_holistic_payload_parts import (
     _attach_issue_history_context,
     _build_selected_prompts,
@@ -16,7 +17,6 @@ from .prepare_holistic_payload_parts import (
 from .prepare_holistic_scope import (
     collect_allowed_review_files,
     file_in_allowed_scope,
-    filter_batches_to_file_scope,
 )
 
 
@@ -92,13 +92,9 @@ class HolisticPrepareDependencies:
     load_dimensions_for_lang_fn: object
     resolve_dimensions_fn: object
     get_lang_guidance_fn: object
-    build_investigation_batches_fn: object
-    batch_concerns_fn: object
-    filter_batches_to_dimensions_fn: object
-    append_full_sweep_batch_fn: object
+    assemble_holistic_batches_fn: object
+    holistic_batch_deps: HolisticBatchAssemblyDependencies
     serialize_context_fn: object
-    log_best_effort_failure_fn: object
-    logger: object
 
 
 def _resolve_dimension_context(
@@ -133,55 +129,6 @@ def _resolve_dimension_context(
     )
 
 
-def _append_concerns_batch(
-    batches: list[dict[str, Any]],
-    state: dict,
-    dims: list[str],
-    allowed_review_files: set[str],
-    max_files_per_batch: int,
-    *,
-    batch_concerns_fn,
-    log_best_effort_failure_fn,
-    log: object,
-) -> None:
-    """Generate concern signals and append as a batch (best-effort)."""
-    try:
-        from desloppify.engine._concerns.generators import generate_concerns
-
-        concerns = generate_concerns(state)
-        concerns = [
-            concern
-            for concern in concerns
-            if file_in_allowed_scope(getattr(concern, "file", ""), allowed_review_files)
-        ]
-        concerns_batch = batch_concerns_fn(
-            concerns,
-            max_files=max_files_per_batch,
-            active_dimensions=dims,
-        )
-        if concerns_batch:
-            concern_dim = concerns_batch["dimensions"][0]
-            merged = False
-            for existing in batches:
-                if existing.get("dimensions") == [concern_dim]:
-                    existing_files = set(existing.get("files_to_read", []))
-                    for filepath in concerns_batch.get("files_to_read", []):
-                        if filepath not in existing_files:
-                            existing["files_to_read"].append(filepath)
-                            existing_files.add(filepath)
-                    existing["concern_signals"] = concerns_batch.get("concern_signals", [])
-                    existing["concern_signal_count"] = concerns_batch.get("concern_signal_count", 0)
-                    jfc = concerns_batch.get("judgment_finding_counts")
-                    if jfc:
-                        existing["judgment_finding_counts"] = jfc
-                    merged = True
-                    break
-            if not merged:
-                batches.append(concerns_batch)
-    except (ImportError, AttributeError, TypeError, ValueError) as exc:
-        log_best_effort_failure_fn(log, "generate review concern batch", exc)
-
-
 def prepare_holistic_review_payload(
     path: Path,
     lang: object,
@@ -213,44 +160,20 @@ def prepare_holistic_review_payload(
         get_lang_guidance_fn=deps.get_lang_guidance_fn,
     )
 
-    batches = deps.build_investigation_batches_fn(
-        context,
-        lang,
-        repo_root=path,
-        max_files_per_batch=options.max_files_per_batch,
-        state=state,
-    )
-
-    _append_concerns_batch(
-        batches,
-        state,
-        dim_ctx.dims,
-        allowed_review_files,
-        options.max_files_per_batch,
-        batch_concerns_fn=deps.batch_concerns_fn,
-        log_best_effort_failure_fn=deps.log_best_effort_failure_fn,
-        log=deps.logger,
-    )
-
-    batches = deps.filter_batches_to_dimensions_fn(
-        batches,
-        dim_ctx.dims,
-        fallback_max_files=options.max_files_per_batch,
-    )
     include_full_sweep = bool(options.include_full_sweep)
     if options.dimensions:
         include_full_sweep = False
-    if include_full_sweep:
-        deps.append_full_sweep_batch_fn(
-            batches=batches,
-            dims=dim_ctx.dims,
-            all_files=scoped_files,
-            lang=lang,
-            max_files=options.max_files_per_batch,
-        )
-    batches = filter_batches_to_file_scope(
-        batches,
-        allowed_files=allowed_review_files,
+    batches = deps.assemble_holistic_batches_fn(
+        context,
+        lang=lang,
+        repo_root=path,
+        state=state,
+        dims=dim_ctx.dims,
+        all_files=scoped_files,
+        allowed_review_files=allowed_review_files,
+        include_full_sweep=include_full_sweep,
+        max_files_per_batch=options.max_files_per_batch,
+        deps=deps.holistic_batch_deps,
     )
 
     selected_prompts = _build_selected_prompts(
