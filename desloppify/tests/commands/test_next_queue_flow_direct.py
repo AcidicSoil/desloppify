@@ -154,10 +154,12 @@ def test_build_and_render_execution_queue_renders_real_issue_and_payload(capsys)
             "scan_count": 0,
         },
         config={},
-        resolve_lang_fn=lambda _args: SimpleNamespace(name="python"),
-        load_plan_fn=lambda: {},
-        build_work_queue_fn=_build_queue,
-        write_query_fn=lambda payload: written.append(payload),
+        deps=queue_flow_mod.QueueRenderDeps(
+            resolve_lang_fn=lambda _args: SimpleNamespace(name="python"),
+            load_plan_fn=lambda: {},
+            build_work_queue_fn=_build_queue,
+            write_query_fn=lambda payload: written.append(payload),
+        ),
     )
 
     out = capsys.readouterr().out
@@ -192,13 +194,15 @@ def test_build_and_render_backlog_queue_hides_execution_prompt(capsys) -> None:
             "scan_count": 0,
         },
         config={},
-        resolve_lang_fn=lambda _args: SimpleNamespace(name="python"),
-        load_plan_fn=lambda: {"queue_order": ["smells::planned"]},
-        build_work_queue_fn=lambda _state, *, options: {
-            "items": [item],
-            "total": 1,
-        },
-        write_query_fn=lambda payload: written.append(payload),
+        deps=queue_flow_mod.QueueRenderDeps(
+            resolve_lang_fn=lambda _args: SimpleNamespace(name="python"),
+            load_plan_fn=lambda: {"queue_order": ["smells::planned"]},
+            build_work_queue_fn=lambda _state, *, options: {
+                "items": [item],
+                "total": 1,
+            },
+            write_query_fn=lambda payload: written.append(payload),
+        ),
     )
 
     out = capsys.readouterr().out
@@ -230,17 +234,21 @@ def test_build_and_render_queue_respects_explicit_view_flags(capsys) -> None:
             "scan_count": 0,
         },
         config={},
-        resolve_lang_fn=lambda _args: SimpleNamespace(name="python"),
-        load_plan_fn=lambda: {"queue_order": ["smells::planned"]},
-        build_work_queue_fn=lambda _state, *, options: {
-            "items": [item],
-            "total": 1,
-        },
-        write_query_fn=lambda payload: written.append(payload),
-        command_name="custom-backlog",
-        show_plan_context=False,
-        collapse_plan_clusters=False,
-        show_execution_prompt=False,
+        view=queue_flow_mod.QueueViewConfig(
+            command_name="custom-backlog",
+            show_plan_context=False,
+            collapse_plan_clusters=False,
+            show_execution_prompt=False,
+        ),
+        deps=queue_flow_mod.QueueRenderDeps(
+            resolve_lang_fn=lambda _args: SimpleNamespace(name="python"),
+            load_plan_fn=lambda: {"queue_order": ["smells::planned"]},
+            build_work_queue_fn=lambda _state, *, options: {
+                "items": [item],
+                "total": 1,
+            },
+            write_query_fn=lambda payload: written.append(payload),
+        ),
     )
 
     out = capsys.readouterr().out

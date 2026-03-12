@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from desloppify.app.commands.helpers.guardrails import triage_guardrail_messages
@@ -46,6 +47,28 @@ class QueueViewConfig:
     show_plan_context: bool
     collapse_plan_clusters: bool
     show_execution_prompt: bool
+
+
+@dataclass(frozen=True, slots=True)
+class QueueRenderDeps:
+    resolve_lang_fn: Callable[..., object] = resolve_lang
+    load_plan_fn: Callable[..., dict] = load_plan
+    build_work_queue_fn: Callable[..., dict] = build_execution_queue
+    write_query_fn: Callable[..., None] = write_query
+
+
+EXECUTION_QUEUE_VIEW = QueueViewConfig(
+    command_name="next",
+    show_plan_context=True,
+    collapse_plan_clusters=True,
+    show_execution_prompt=True,
+)
+BACKLOG_QUEUE_VIEW = QueueViewConfig(
+    command_name="backlog",
+    show_plan_context=False,
+    collapse_plan_clusters=False,
+    show_execution_prompt=False,
+)
 
 
 def _build_next_payload(
@@ -374,10 +397,7 @@ def _build_and_render_queue_view(
     state: dict,
     config: dict,
     *,
-    resolve_lang_fn=resolve_lang,
-    load_plan_fn=load_plan,
-    build_work_queue_fn=build_work_queue,
-    write_query_fn=write_query,
+    deps: QueueRenderDeps,
     view: QueueViewConfig,
 ) -> None:
     """Build queue payload and render output for a queue surface."""
@@ -385,7 +405,7 @@ def _build_and_render_queue_view(
     guardrail_warnings = triage_guardrail_messages(state=state)
     target_strict = target_strict_score_from_config(config)
 
-    plan = load_plan_fn()
+    plan = deps.load_plan_fn()
     plan_for_queue = plan
     plan_data = _plan_data_for_view(plan, show_plan_context=view.show_plan_context)
     ctx, queue, items, effective_cluster = _resolve_queue_items(
@@ -394,7 +414,7 @@ def _build_and_render_queue_view(
         opts=opts,
         plan_for_queue=plan_for_queue,
         target_strict=target_strict,
-        build_work_queue_fn=build_work_queue_fn,
+        build_work_queue_fn=deps.build_work_queue_fn,
     )
     items = _apply_queue_view_transforms(
         items=items,
@@ -416,7 +436,7 @@ def _build_and_render_queue_view(
             target_strict=target_strict,
             opts=opts,
             guardrail_warnings=guardrail_warnings,
-            write_query_fn=write_query_fn,
+            write_query_fn=deps.write_query_fn,
             command_name=view.command_name,
             show_plan_context=view.show_plan_context,
         )
@@ -429,14 +449,14 @@ def _build_and_render_queue_view(
         queue=queue,
         plan_data=plan_data,
         guardrail_warnings=guardrail_warnings,
-        write_query_fn=write_query_fn,
+        write_query_fn=deps.write_query_fn,
         view=view,
         opts=opts,
         plan_for_queue=plan_for_queue,
         effective_cluster=effective_cluster,
         target_strict=target_strict,
         ctx=ctx,
-        resolve_lang_fn=resolve_lang_fn,
+        resolve_lang_fn=deps.resolve_lang_fn,
     )
 
 
@@ -445,25 +465,17 @@ def build_and_render_execution_queue(
     state: dict,
     config: dict,
     *,
-    resolve_lang_fn=resolve_lang,
-    load_plan_fn=load_plan,
-    build_work_queue_fn=build_execution_queue,
-    write_query_fn=write_query,
+    deps: QueueRenderDeps | None = None,
 ) -> None:
     """Build queue payload and render output for `desloppify next`."""
-    _build_and_render_queue_view(
+    build_and_render_queue(
         args,
         state,
         config,
-        resolve_lang_fn=resolve_lang_fn,
-        load_plan_fn=load_plan_fn,
-        build_work_queue_fn=build_work_queue_fn,
-        write_query_fn=write_query_fn,
-        view=QueueViewConfig(
-            command_name="next",
-            show_plan_context=True,
-            collapse_plan_clusters=True,
-            show_execution_prompt=True,
+        view=EXECUTION_QUEUE_VIEW,
+        deps=deps
+        or QueueRenderDeps(
+            build_work_queue_fn=build_execution_queue,
         ),
     )
 
@@ -473,25 +485,17 @@ def build_and_render_backlog_queue(
     state: dict,
     config: dict,
     *,
-    resolve_lang_fn=resolve_lang,
-    load_plan_fn=load_plan,
-    build_work_queue_fn=build_backlog_queue,
-    write_query_fn=write_query,
+    deps: QueueRenderDeps | None = None,
 ) -> None:
     """Build queue payload and render output for `desloppify backlog`."""
-    _build_and_render_queue_view(
+    build_and_render_queue(
         args,
         state,
         config,
-        resolve_lang_fn=resolve_lang_fn,
-        load_plan_fn=load_plan_fn,
-        build_work_queue_fn=build_work_queue_fn,
-        write_query_fn=write_query_fn,
-        view=QueueViewConfig(
-            command_name="backlog",
-            show_plan_context=False,
-            collapse_plan_clusters=False,
-            show_execution_prompt=False,
+        view=BACKLOG_QUEUE_VIEW,
+        deps=deps
+        or QueueRenderDeps(
+            build_work_queue_fn=build_backlog_queue,
         ),
     )
 
@@ -501,34 +505,23 @@ def build_and_render_queue(
     state: dict,
     config: dict,
     *,
-    resolve_lang_fn=resolve_lang,
-    load_plan_fn=load_plan,
-    build_work_queue_fn=build_execution_queue,
-    write_query_fn=write_query,
-    command_name: str = "next",
-    show_plan_context: bool = True,
-    collapse_plan_clusters: bool = True,
-    show_execution_prompt: bool = True,
+    view: QueueViewConfig = EXECUTION_QUEUE_VIEW,
+    deps: QueueRenderDeps | None = None,
 ) -> None:
-    """Compatibility wrapper that respects the provided queue view settings."""
+    """Build queue payload and render output using one stable view contract."""
     _build_and_render_queue_view(
         args,
         state,
         config,
-        resolve_lang_fn=resolve_lang_fn,
-        load_plan_fn=load_plan_fn,
-        build_work_queue_fn=build_work_queue_fn,
-        write_query_fn=write_query_fn,
-        view=QueueViewConfig(
-            command_name=command_name,
-            show_plan_context=show_plan_context,
-            collapse_plan_clusters=collapse_plan_clusters,
-            show_execution_prompt=show_execution_prompt,
-        ),
+        deps=deps or QueueRenderDeps(build_work_queue_fn=build_execution_queue),
+        view=view,
     )
 
 
 __all__ = [
+    "BACKLOG_QUEUE_VIEW",
+    "EXECUTION_QUEUE_VIEW",
+    "QueueRenderDeps",
     "QueueViewConfig",
     "build_and_render_backlog_queue",
     "build_and_render_execution_queue",
