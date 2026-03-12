@@ -9,6 +9,7 @@ import argparse
 import json
 import logging
 import re
+import shutil
 import subprocess
 import sys
 from collections import defaultdict
@@ -40,6 +41,29 @@ _detect_unused_fallback = detect_unused_fallback
 _should_use_deno_fallback = should_use_deno_fallback
 
 
+def _run_tsc_unused_check(
+    project_root: Path,
+    tsconfig_path: Path,
+) -> subprocess.CompletedProcess[str]:
+    """Run the fixed `npx tsc` unused-symbol check for one project root."""
+    npx_path = shutil.which("npx")
+    if not npx_path:
+        raise OSError("npx executable not found in PATH")
+    return subprocess.run(  # nosec B603
+        [
+            npx_path,
+            "tsc",
+            "--project",
+            str(tsconfig_path),
+            "--noEmit",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=project_root,
+        timeout=120,
+    )
+
+
 def detect_unused(path: Path, category: str = "all") -> tuple[list[dict], int]:
     ts_files = find_ts_and_tsx_files(path)
     total_files = len(ts_files)
@@ -57,19 +81,7 @@ def detect_unused(path: Path, category: str = "all") -> tuple[list[dict], int]:
     try:
         safe_write_text(tmp_path, json.dumps(tmp_tsconfig, indent=2))
         try:
-            result = subprocess.run(
-                [
-                    "npx",
-                    "tsc",
-                    "--project",
-                    str(tmp_path),
-                    "--noEmit",
-                ],
-                capture_output=True,
-                text=True,
-                cwd=get_project_root(),
-                timeout=120,
-            )
+            result = _run_tsc_unused_check(get_project_root(), tmp_path)
         except (subprocess.SubprocessError, OSError) as exc:
             logger.debug("Falling back to source-based unused detection: %s", exc)
             return _detect_unused_fallback(path, category)

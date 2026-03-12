@@ -36,6 +36,7 @@ def test_module_imports():
     """Module can be imported without errors."""
     assert callable(detect_unused)
     assert callable(_categorize_unused)
+    assert callable(ts_unused_mod._run_tsc_unused_check)
 
 
 # ── TS error regex patterns ──────────────────────────────────
@@ -134,6 +135,42 @@ class TestCategorizeUnused:
 
 
 class TestDenoFallback:
+    def test_run_tsc_unused_check_uses_fixed_command(self, tmp_path, monkeypatch):
+        class _Result:
+            stdout = ""
+            stderr = ""
+
+        recorded: dict[str, object] = {}
+        npx_path = "/opt/homebrew/bin/npx"
+
+        def _fake_run(*args, **kwargs):
+            recorded["args"] = args[0]
+            recorded["cwd"] = kwargs["cwd"]
+            recorded["timeout"] = kwargs["timeout"]
+            return _Result()
+
+        monkeypatch.setattr(ts_unused_mod.shutil, "which", lambda _name: npx_path)
+        monkeypatch.setattr(ts_unused_mod.subprocess, "run", _fake_run)
+        tsconfig = tmp_path / "tsconfig.desloppify.json"
+        result = ts_unused_mod._run_tsc_unused_check(tmp_path, tsconfig)
+
+        assert result.stdout == ""
+        assert recorded["args"] == [
+            npx_path,
+            "tsc",
+            "--project",
+            str(tsconfig),
+            "--noEmit",
+            ]
+        assert recorded["cwd"] == tmp_path
+        assert recorded["timeout"] == 120
+
+    def test_run_tsc_unused_check_raises_without_npx(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(ts_unused_mod.shutil, "which", lambda _name: None)
+
+        with pytest.raises(OSError, match="npx executable not found"):
+            ts_unused_mod._run_tsc_unused_check(tmp_path, tmp_path / "tsconfig.json")
+
     def test_detect_unused_uses_deno_fallback_for_url_imports(self, tmp_path, monkeypatch):
         """Deno-style URL imports should bypass tsc and use source-based fallback."""
         _write(

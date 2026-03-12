@@ -137,7 +137,10 @@ def extract_rust_functions(filepath: str) -> list[FunctionInfo]:
                 loc=max(1, end_line - start_line + 1),
                 body=body,
                 normalized=normalized,
-                body_hash=hashlib.md5(normalized.encode("utf-8")).hexdigest()[:12],
+                body_hash=hashlib.md5(
+                    normalized.encode("utf-8"),
+                    usedforsecurity=False,
+                ).hexdigest()[:12],
                 params=_extract_params(match.group(2)),
             )
         )

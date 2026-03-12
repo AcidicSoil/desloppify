@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+from types import SimpleNamespace
+
 import desloppify.app.cli_support.parser as cli_parser
 import desloppify.app.cli_support.parser_groups as cli_parser_groups
 import desloppify.app.commands.config as config_cmd
@@ -36,6 +39,9 @@ import desloppify.base.runtime_state as runtime_state
 import desloppify.engine._state.noise as noise
 import desloppify.engine._state.persistence as persistence
 import desloppify.engine._state.resolution as state_resolution
+import desloppify.engine._work_queue.finalize as work_queue_finalize_mod
+import desloppify.engine._work_queue.inputs as work_queue_inputs_mod
+import desloppify.engine._work_queue.selection as work_queue_selection_mod
 import desloppify.engine.planning.helpers as plan_common
 import desloppify.engine.planning.scan as plan_scan
 import desloppify.engine.planning.select as plan_select
@@ -70,9 +76,15 @@ import desloppify.languages.python.extractors_classes as py_extractors_classes
 import desloppify.languages.python.extractors_shared as py_extractors_shared
 import desloppify.languages.python.phases as py_phases
 import desloppify.languages.python.phases_quality as py_phases_quality
+import desloppify.languages.rust.detectors._shared as rust_shared_mod
+import desloppify.languages.rust.move as rust_move_mod
+import desloppify.languages.rust.phases_smells as rust_phases_smells_mod
 import desloppify.languages.typescript.detectors.smells.detector_safety as ts_smell_detectors_safety
+import desloppify.languages.typescript.detectors.smells.helpers_blocks as ts_smell_blocks_mod
+import desloppify.languages.typescript.detectors.smells.helpers_line_state as ts_smell_line_state_mod
 import desloppify.languages.typescript.detectors.deps.runtime as ts_deps_runtime
 import desloppify.languages.typescript.extractors_components as ts_extractors_components
+from desloppify.engine._work_queue.models import QueueBuildOptions, QueueVisibility
 from desloppify.intelligence.review import prepare_batches_builders as review_prepare_batches
 from desloppify.languages import resolution as lang_resolution
 from desloppify.languages.csharp import move as csharp_move
@@ -187,6 +199,86 @@ def test_smoke_engine():
     assert isinstance(py_phases.PY_GOD_RULES, list)
 
 
+def test_work_queue_split_modules_have_direct_behavior(monkeypatch):
+    items = [{"id": "issue::1", "kind": "issue"}]
+    monkeypatch.setattr(
+        work_queue_finalize_mod,
+        "enrich_with_impact",
+        lambda *_a, **_k: None,
+    )
+    monkeypatch.setattr(
+        work_queue_finalize_mod,
+        "item_sort_key",
+        lambda item: item["id"],
+    )
+    monkeypatch.setattr(
+        work_queue_finalize_mod,
+        "item_explain",
+        lambda item: f"why:{item['id']}",
+    )
+    monkeypatch.setattr(
+        work_queue_finalize_mod,
+        "group_queue_items",
+        lambda grouped_items, _mode: {"item": list(grouped_items)},
+    )
+    result = work_queue_finalize_mod.finalize_queue(
+        items,
+        state={"dimension_scores": {}},
+        plan=None,
+        opts=QueueBuildOptions(explain=True),
+    )
+    assert result["items"][0]["explain"] == "why:issue::1"
+    assert result["grouped"]["item"][0]["id"] == "issue::1"
+
+    opts = QueueBuildOptions(
+        status="open",
+        subjective_threshold="oops",
+        context=SimpleNamespace(plan={"queue": []}),
+    )
+    plan, scan_path, status, threshold = work_queue_inputs_mod.resolve_queue_inputs(
+        opts,
+        {"scan_path": "src"},
+    )
+    assert plan == {"queue": []}
+    assert scan_path == "src"
+    assert status == "open"
+    assert threshold == 100.0
+
+    monkeypatch.setattr(
+        work_queue_inputs_mod,
+        "build_subjective_items",
+        lambda *_a, **_k: [
+            {
+                "id": "subjective::x",
+                "kind": "subjective_dimension",
+                "summary": "X",
+            }
+        ],
+    )
+    gathered = work_queue_inputs_mod.gather_subjective_items({}, opts, 50.0)
+    assert gathered[0]["id"] == "subjective::x"
+
+    snapshot = SimpleNamespace(
+        backlog_items=[{"id": "backlog::1", "kind": "issue"}],
+        execution_items=[{"id": "exec::1", "kind": "issue"}],
+    )
+    monkeypatch.setattr(
+        work_queue_selection_mod,
+        "build_queue_snapshot",
+        lambda *_a, **_k: snapshot,
+    )
+    selected = work_queue_selection_mod.select_queue_items(
+        {},
+        opts=QueueBuildOptions(),
+        plan=None,
+        scan_path=".",
+        status="open",
+        threshold=95.0,
+        visibility=QueueVisibility.BACKLOG,
+    )
+    assert selected == [{"id": "backlog::1", "kind": "issue"}]
+
+
 def test_smoke_lang_plugins():
     """Language plugin modules: package, discovery, resolution, per-lang."""
     # lang package/discovery/resolution
@@ -250,6 +342,117 @@ def test_smoke_lang_plugins():
     assert callable(gdscript_phases.phase_structural)
     assert callable(gdscript_phases.phase_coupling)
     assert isinstance(gdscript_review.HOLISTIC_REVIEW_DIMENSIONS, list)
+
+
+def test_rust_move_smells_and_shared_helpers_have_direct_coverage(monkeypatch, tmp_path):
+    assert rust_move_mod.VERIFY_HINT == "cargo check"
+    assert rust_move_mod.find_replacements("src/lib.rs", "src/new.rs", {}) == {}
+    assert rust_move_mod.find_self_replacements("src/lib.rs", "src/new.rs", {}) == []
+    assert rust_move_mod.filter_intra_package_importer_changes(
+        "src/lib.rs",
+        [("old", "new")],
+        {"src/lib.rs"},
+    ) == [("old", "new")]
+
+    monkeypatch.setattr(
+        rust_phases_smells_mod,
+        "detect_smells",
+        lambda _path: (
+            [
+                {
+                    "id": "allow_attr",
+                    "label": "Allow attr",
+                    "severity": "medium",
+                    "matches": [
+                        {
+                            "file": "src/lib.rs",
+                            "line": 3,
+                            "content": "#[allow(dead_code)]",
+                        }
+                    ],
+                }
+            ],
+            4,
+        ),
+    )
+    monkeypatch.setattr(
+        rust_phases_smells_mod,
+        "normalize_smell_entries",
+        lambda entries: [
+            SimpleNamespace(to_mapping=lambda entry=entry: entry) for entry in entries
+        ],
+    )
+    monkeypatch.setattr(
+        rust_phases_smells_mod,
+        "make_smell_issues",
+        lambda entries, _log: [{"detector": "smells", "entries": entries}],
+    )
+    issues, potentials = rust_phases_smells_mod.phase_smells(
+        Path("."),
+        SimpleNamespace(zone_map=None),
+    )
+    assert issues[0]["detector"] == "smells"
+    assert potentials == {"smells": 4}
+
+    manifest = tmp_path / "Cargo.toml"
+    manifest.write_text(
+        """
+[package]
+name = "demo"
+version = "0.1.0"
+
+[features]
+serde = []
+
+[dependencies]
+tokio = { version = "1", optional = true }
+""".strip()
+        + "\n"
+    )
+    assert rust_shared_mod._declared_features(manifest) == {"serde", "tokio"}
+
+    public_fns = rust_shared_mod._iter_public_functions(
+        "#[inline]\npub fn run(&self, value: i32) -> i32 {\n    value + 1\n}\n"
+    )
+    assert public_fns[0].name == "run"
+    assert rust_shared_mod._receiver_from_signature(public_fns[0].signature) == "&self"
+
+    public_types = rust_shared_mod._iter_public_types(
+        "pub struct Widget {\n    pub value: i32,\n}\n"
+    )
+    assert public_types[0].name == "Widget"
+
+
+def test_typescript_split_smell_helpers_have_direct_coverage():
+    lines = [
+        "function demo() {",
+        "  const text = '{ok}';",
+        "  if (ready) {",
+        "    return value;",
+        "  }",
+        "}",
+    ]
+    assert ts_smell_blocks_mod._track_brace_body(lines, 0) == 5
+    body = ts_smell_blocks_mod._extract_block_body("if (ok) { keep(); }", 8)
+    assert body == " keep(); "
+    masked = ts_smell_blocks_mod._code_text('const x = "message"; // hi')
+    assert "message" not in masked
+
+    assert ts_smell_line_state_mod._scan_template_content("x`${a}`", 1, 0)[1] is True
+    assert ts_smell_line_state_mod._scan_code_line("/* open comment") == (True, False, 0)
+    states = ts_smell_line_state_mod._build_ts_line_state(
+        [
+            "const a = 1;",
+            "/* block",
+            "still block",
+            "end */",
+            "const tpl = `",
+            "value",
+            "`;",
+        ]
+    )
+    assert states[2] == "block_comment"
+    assert states[5] == "template_literal"
 
 
 def test_smoke_intelligence():
