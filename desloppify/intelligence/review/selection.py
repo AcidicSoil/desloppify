@@ -27,7 +27,7 @@ from desloppify.intelligence.review.selection_cache import (
     count_stale,
     get_file_issues,
 )
-from desloppify.languages import get_lang
+from desloppify.languages.framework import get_lang
 
 logger = logging.getLogger(__name__)
 

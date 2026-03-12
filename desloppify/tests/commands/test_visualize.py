@@ -72,14 +72,14 @@ class TestCollectFileData:
         scan_root.mkdir(parents=True, exist_ok=True)
 
         monkeypatch.setattr(
-            "desloppify.languages.auto_detect_lang",
+            "desloppify.languages.framework.auto_detect_lang",
             lambda _root: "python",
         )
         monkeypatch.setattr(
-            "desloppify.languages.get_lang",
+            "desloppify.languages.framework.get_lang",
             lambda _name: (_ for _ in ()).throw(RuntimeError("plugin load failed")),
         )
-        monkeypatch.setattr("desloppify.languages.available_langs", lambda: ["python"])
+        monkeypatch.setattr("desloppify.languages.framework.available_langs", lambda: ["python"])
 
         rows = _collect_file_data(scan_root, lang=None)
         assert rows == []
@@ -91,11 +91,11 @@ class TestCollectFileData:
         scan_root.mkdir(parents=True, exist_ok=True)
 
         monkeypatch.setattr(
-            "desloppify.languages.auto_detect_lang",
+            "desloppify.languages.framework.auto_detect_lang",
             lambda _root: "python",
         )
         monkeypatch.setattr(
-            "desloppify.languages.get_lang",
+            "desloppify.languages.framework.get_lang",
             lambda _name: (_ for _ in ()).throw(LookupError("unexpected resolution bug")),
         )
 
@@ -595,5 +595,3 @@ class TestPrintTree:
 # ===========================================================================
 # D3_CDN_URL constant
 # ===========================================================================
-
-

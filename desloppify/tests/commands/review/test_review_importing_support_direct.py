@@ -754,7 +754,7 @@ def test_plan_sync_source_preserves_scoped_sync_pipeline_contract() -> None:
     assert "if not has_living_plan(plan_path):" in src
     assert "plan = load_plan(plan_path)" in src
     assert "policy = compute_subjective_visibility(" in src
-    assert "snapshot = state_mod.score_snapshot(state)" in src
+    assert "snapshot = score_snapshot(state)" in src
     assert "current_scores = ScoreSnapshot(" in src
     assert 'trusted_score_import = assessment_mode in {"trusted_internal", "attested_external"}' in src
     assert "communicate_result = sync_communicate_score_needed(" in src

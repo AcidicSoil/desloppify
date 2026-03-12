@@ -6,9 +6,10 @@ per-command boilerplate.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
-from desloppify.base.discovery.paths import get_project_root
+from desloppify.base.runtime_state import resolve_runtime_context
 
 # ── Test override hooks (monkeypatch these in tests) ──────────────
 PROJECT_ROOT: Path | None = None
@@ -22,7 +23,10 @@ def runtime_project_root(*, project_root_override: Path | None = None) -> Path:
     override = project_root_override if project_root_override is not None else PROJECT_ROOT
     if isinstance(override, Path):
         return override
-    return get_project_root()
+    runtime_root = resolve_runtime_context().project_root
+    if runtime_root is not None:
+        return Path(runtime_root).resolve()
+    return Path(os.environ.get("DESLOPPIFY_ROOT", Path.cwd())).resolve()
 
 
 def review_packet_dir(

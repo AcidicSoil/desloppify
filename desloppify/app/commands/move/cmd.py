@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from desloppify import languages as lang_mod
+from desloppify.languages import framework as lang_mod
 from desloppify.app.commands.move.apply import apply_file_move
 from desloppify.app.commands.move.directory import run_directory_move
 from desloppify.app.commands.move.language import (

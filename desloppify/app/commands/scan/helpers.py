@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from desloppify import languages as lang_api
+from desloppify.languages import framework as lang_api
 from desloppify import state as state_mod
 from desloppify.base.discovery.source import (
     DEFAULT_EXCLUSIONS,

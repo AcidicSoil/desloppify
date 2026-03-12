@@ -17,7 +17,7 @@ from desloppify.intelligence.narrative.action_engine_routing import (
     _dimension_name,
 )
 from desloppify.intelligence.narrative.action_models import ActionContext, ActionItem
-from desloppify.languages import get_lang
+from desloppify.languages.framework import get_lang
 from desloppify.state_io import StateModel
 
 

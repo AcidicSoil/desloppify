@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from desloppify.languages.framework import LangRun
 
-from desloppify import state as state_mod
 from desloppify.app.commands.helpers.lang import resolve_lang, resolve_lang_settings
 from desloppify.app.commands.helpers.runtime import command_runtime
 from desloppify.app.commands.helpers.runtime_options import resolve_lang_runtime_options
@@ -46,6 +45,12 @@ from desloppify.base.discovery.source import (
     get_exclusions,
 )
 from desloppify.base.discovery.paths import get_project_root
+from desloppify.engine._state.filtering import path_scoped_issues
+from desloppify.engine._state.merge import MergeScanOptions, merge_scan
+from desloppify.engine._state.noise import (
+    apply_issue_noise_budget,
+    resolve_issue_noise_settings,
+)
 from desloppify.engine._work_queue.issues import mark_stale_holistic
 from desloppify.engine.planning.scan import PlanScanOptions, generate_issues as generate_plan_issues
 from desloppify.intelligence.review.dimensions.metadata import (
@@ -58,6 +63,8 @@ from desloppify.languages.framework import (
     enable_parse_cache,
     make_lang_run,
 )
+from desloppify.state_io import StateModel, ensure_state_defaults, save_state, utc_now
+from desloppify.state_scoring import ScoreSnapshot, score_snapshot
 
 _WONTFIX_DECAY_SCANS_DEFAULT = 20
 
@@ -84,7 +91,7 @@ def _reconcile_plan_post_scan(runtime: ScanRuntime) -> None:
 
 
 def _state_subjective_assessments(
-    state: state_mod.StateModel,
+    state: StateModel,
 ) -> dict[str, object]:
     """Return normalized subjective assessment store from state."""
     assessments = state.get("subjective_assessments")
@@ -96,7 +103,7 @@ def _state_subjective_assessments(
 
 
 def _ensure_state_lang_capabilities(
-    state: state_mod.StateModel,
+    state: StateModel,
 ) -> dict[str, dict[str, object]]:
     """Return language capability map, creating storage when missing."""
     capabilities = state.get("lang_capabilities")
@@ -111,7 +118,7 @@ def _ensure_state_lang_capabilities(
     )
 
 
-def _state_issues(state: state_mod.StateModel) -> dict[str, dict[str, Any]]:
+def _state_issues(state: StateModel) -> dict[str, dict[str, Any]]:
     """Return normalized issue map from state."""
     issues = state.get("issues")
     if isinstance(issues, dict):
@@ -132,7 +139,7 @@ class ScanRuntime:
 
     args: argparse.Namespace
     state_path: Path | None
-    state: state_mod.StateModel
+    state: StateModel
     path: Path
     config: dict[str, object]
     lang: LangRun | None
@@ -171,7 +178,7 @@ class ScanNoiseSnapshot:
 def _configure_lang_runtime(
     args: argparse.Namespace,
     config: dict[str, object],
-    state: state_mod.StateModel,
+    state: StateModel,
     lang: LangRun | None,
 ) -> LangRun | None:
     """Populate runtime context and threshold overrides for a selected language."""
@@ -221,7 +228,7 @@ def _apply_assessment_reset(payload: dict, *, source: str, now: str) -> None:
 
 
 def _reset_subjective_assessments_for_scan_reset(
-    state: state_mod.StateModel,
+    state: StateModel,
     *,
     lang_name: str | None = None,
 ) -> int:
@@ -235,7 +242,7 @@ def _reset_subjective_assessments_for_scan_reset(
     }
     reset_keys.update(_subjective_reset_dimensions(lang_name=lang_name))
 
-    now = state_mod.utc_now()
+    now = utc_now()
     source = "scan_reset_subjective"
     for key in sorted(reset_keys):
         payload = assessments.get(key)
@@ -259,7 +266,7 @@ def prepare_scan_runtime(args: argparse.Namespace) -> ScanRuntime:
     runtime = command_runtime(args)
     state_file = runtime.state_path
     state = runtime.state if isinstance(runtime.state, dict) else {}
-    state_mod.ensure_state_defaults(state)
+    ensure_state_defaults(state)
     path = Path(args.path)
     config = runtime.config if isinstance(runtime.config, dict) else {}
     lang_config = resolve_lang(args)
@@ -385,9 +392,9 @@ def merge_scan_results(
     path_changed = prev_scan_path is not None and prev_scan_path != scan_path_rel
 
     if not path_changed:
-        prev = state_mod.score_snapshot(runtime.state)
+        prev = score_snapshot(runtime.state)
     else:
-        prev = state_mod.ScoreSnapshot(None, None, None, None)
+        prev = ScoreSnapshot(None, None, None, None)
     prev_dim_scores = (
         runtime.state.get("dimension_scores", {}) if not path_changed else {}
     )
@@ -398,10 +405,10 @@ def merge_scan_results(
 
     target_score = target_strict_score_from_config(runtime.config)
 
-    diff = state_mod.merge_scan(
+    diff = merge_scan(
         runtime.state,
         issues,
-        options=state_mod.MergeScanOptions(
+        options=MergeScanOptions(
             lang=runtime.lang.name if runtime.lang else None,
             scan_path=scan_path_rel,
             force_resolve=getattr(runtime.args, "force_resolve", False),
@@ -417,7 +424,7 @@ def merge_scan_results(
     mark_stale_holistic(
         runtime.state, runtime.config.get("holistic_max_age_days", 30)
     )
-    state_mod.save_state(
+    save_state(
         runtime.state,
         runtime.state_path,
         subjective_integrity_target=target_score,
@@ -437,22 +444,22 @@ def merge_scan_results(
 
 
 def resolve_noise_snapshot(
-    state: state_mod.StateModel,
+    state: StateModel,
     config: dict[str, object],
 ) -> ScanNoiseSnapshot:
     """Resolve noise budget settings and hidden issue counters."""
     noise_budget, global_noise_budget, budget_warning = (
-        state_mod.resolve_issue_noise_settings(config)
+        resolve_issue_noise_settings(config)
     )
     issues_by_id = _state_issues(state)
     open_issues = [
         issue
-        for issue in state_mod.path_scoped_issues(
+        for issue in path_scoped_issues(
             issues_by_id, state.get("scan_path")
         ).values()
         if issue.get("status") == "open"
     ]
-    _, hidden_by_detector = state_mod.apply_issue_noise_budget(
+    _, hidden_by_detector = apply_issue_noise_budget(
         open_issues,
         budget=noise_budget,
         global_budget=global_noise_budget,
@@ -477,7 +484,7 @@ def persist_reminder_history(
 
     runtime.state["reminder_history"] = narrative["reminder_history"]
     target_score = target_strict_score_from_config(runtime.config)
-    state_mod.save_state(
+    save_state(
         runtime.state,
         runtime.state_path,
         subjective_integrity_target=target_score,

@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass
 
-from desloppify import state as state_mod
 from desloppify.app.commands.helpers.guardrails import triage_guardrail_messages
 from desloppify.app.commands.helpers.lang import resolve_lang
 from desloppify.app.commands.helpers.query import write_query
@@ -14,6 +13,7 @@ from desloppify.base.discovery.file_paths import safe_write_text
 from desloppify.base.exception_sets import CommandError
 from desloppify.base.output.terminal import colorize
 from desloppify.base.output.user_message import print_user_message
+from desloppify.engine._state.filtering import path_scoped_issues
 from desloppify.engine._work_queue.context import queue_context
 from desloppify.engine._work_queue.core import QueueBuildOptions, build_work_queue
 from desloppify.engine._work_queue.plan_order import (
@@ -27,6 +27,7 @@ from desloppify.engine.planning.queue_policy import (
 )
 from desloppify.engine.planning.scorecard_projection import scorecard_dimensions_payload
 from desloppify.intelligence.narrative.core import NarrativeContext, compute_narrative
+from desloppify.state_scoring import score_snapshot
 
 from . import output as next_output_mod
 from . import render as next_render_mod
@@ -59,7 +60,7 @@ def _build_next_payload(
     payload = next_output_mod.build_query_payload(
         queue, items, command=command_name, narrative=narrative, plan=plan_data
     )
-    scores = state_mod.score_snapshot(state)
+    scores = score_snapshot(state)
     payload["overall_score"] = getattr(scores, "overall", state.get("overall_score"))
     payload["objective_score"] = getattr(
         scores, "objective", state.get("objective_score")
@@ -144,7 +145,7 @@ def _render_empty_queue_view(
     show_plan_context: bool,
 ) -> None:
     """Render and persist the empty queue state."""
-    strict_score = state_mod.score_snapshot(state).strict
+    strict_score = score_snapshot(state).strict
     plan_start_strict = None
     if show_plan_context and plan_for_queue:
         plan_start_strict, _ = _plan_queue_context(
@@ -187,7 +188,7 @@ def _render_terminal_queue_view(
 ) -> None:
     """Render terminal output for a non-empty queue."""
     dim_scores = state.get("dimension_scores", {})
-    issues_scoped = state_mod.path_scoped_issues(
+    issues_scoped = path_scoped_issues(
         state.get("issues", {}),
         state.get("scan_path"),
     )
@@ -202,7 +203,7 @@ def _render_terminal_queue_view(
     queue_total = breakdown.queue_total if breakdown else 0
 
     _render_queue_header(queue, opts.explain)
-    strict_score = state_mod.score_snapshot(state).strict
+    strict_score = score_snapshot(state).strict
     if _show_empty_queue(
         queue,
         strict_score,

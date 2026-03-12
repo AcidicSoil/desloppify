@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from desloppify import languages as lang_api
+from desloppify.languages import framework as lang_api
 from desloppify.app.commands.helpers.lang import resolve_lang, resolve_lang_settings
 from desloppify.app.commands.helpers.runtime import command_runtime
 from desloppify.app.commands.helpers.runtime_options import (

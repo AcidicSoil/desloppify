@@ -27,7 +27,7 @@ from desloppify.intelligence.review.dimensions.data import (
 from desloppify.intelligence.review.dimensions.data import (
     load_dimensions_for_lang as _default_load_dimensions_for_lang,
 )
-from desloppify.languages import available_langs as _available_langs
+from desloppify.languages.framework import available_langs as _available_langs
 
 # Kept as module-level names for backward-compatible monkeypatching in tests and
 # downstream callers.

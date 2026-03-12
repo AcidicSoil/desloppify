@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from desloppify import state as state_mod
 from desloppify.app.commands.helpers.display import short_issue_id
 from desloppify.app.commands.review.importing.flags import imported_assessment_keys
 from desloppify.base.config import target_strict_score_from_config
@@ -35,6 +34,7 @@ from desloppify.engine.plan_triage import (
     TRIAGE_CMD_RUN_STAGES_CLAUDE,
     TRIAGE_CMD_RUN_STAGES_CODEX,
 )
+from desloppify.state_scoring import score_snapshot
 
 
 def _has_postflight_review_work(state: dict, *, policy) -> bool:
@@ -193,7 +193,7 @@ def sync_plan_after_import(
             plan=plan,
         )
 
-        snapshot = state_mod.score_snapshot(state)
+        snapshot = score_snapshot(state)
         current_scores = ScoreSnapshot(
             strict=snapshot.strict,
             overall=snapshot.overall,

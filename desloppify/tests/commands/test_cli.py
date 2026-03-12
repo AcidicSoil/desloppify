@@ -881,8 +881,8 @@ class TestResolveLang:
             detect_markers = ["deno.json", "custom.lock"]
 
         lang_helpers_mod._lang_config_markers.cache_clear()
-        monkeypatch.setattr("desloppify.languages.available_langs", lambda: ["dummy"])
-        monkeypatch.setattr("desloppify.languages.get_lang", lambda _name: DummyCfg())
+        monkeypatch.setattr("desloppify.languages.framework.available_langs", lambda: ["dummy"])
+        monkeypatch.setattr("desloppify.languages.framework.get_lang", lambda _name: DummyCfg())
 
         markers = lang_helpers_mod._lang_config_markers()
         assert "deno.json" in markers
@@ -892,9 +892,9 @@ class TestResolveLang:
 
     def test_lang_config_markers_raises_for_broken_plugin(self, monkeypatch):
         lang_helpers_mod._lang_config_markers.cache_clear()
-        monkeypatch.setattr("desloppify.languages.available_langs", lambda: ["dummy"])
+        monkeypatch.setattr("desloppify.languages.framework.available_langs", lambda: ["dummy"])
         monkeypatch.setattr(
-            "desloppify.languages.get_lang",
+            "desloppify.languages.framework.get_lang",
             lambda _name: (_ for _ in ()).throw(ImportError("broken plugin")),
         )
 

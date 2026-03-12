@@ -28,7 +28,7 @@ def _args(**overrides):
 
 def test_build_next_payload_includes_scores_and_subjective_rows(monkeypatch) -> None:
     monkeypatch.setattr(
-        queue_flow_mod.state_mod,
+        queue_flow_mod,
         "score_snapshot",
         lambda _state: SimpleNamespace(overall=91.0, objective=93.5, strict=90.2),
     )

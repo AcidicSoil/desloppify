@@ -8,7 +8,7 @@ from functools import lru_cache
 from pathlib import Path
 from types import ModuleType
 
-from desloppify import languages as lang_mod
+from desloppify.languages import framework as lang_mod
 from desloppify.app.commands.helpers.lang import load_lang_config, resolve_lang
 from desloppify.base.exception_sets import CommandError
 

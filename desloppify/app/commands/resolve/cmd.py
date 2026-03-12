@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 
 import desloppify.intelligence.narrative.core as narrative_mod
-from desloppify import state as state_mod
 from desloppify.app.commands.helpers.attestation import (
     show_note_length_requirement,
     validate_note_length,
@@ -17,6 +16,7 @@ from desloppify.app.commands.helpers.queue_progress import show_score_with_plan_
 from desloppify.app.commands.helpers.state import state_path
 from desloppify.base.output.terminal import colorize
 from desloppify.engine._state.resolution import coerce_assessment_score
+from desloppify.state_io import load_state
 
 from .apply import _resolve_all_patterns, _write_resolve_query_entry
 from .living_plan import update_living_plan_after_resolve
@@ -59,7 +59,7 @@ def _load_state_with_guards(
         return None
 
     state_file = state_path(args)
-    state = state_mod.load_state(state_file)
+    state = load_state(state_file)
     plan_access = load_resolve_plan_access()
 
     if not getattr(args, "force_resolve", False):

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from desloppify.languages import available_langs, get_lang
+from desloppify.languages.framework import available_langs, get_lang
 
 logger = logging.getLogger(__name__)
 

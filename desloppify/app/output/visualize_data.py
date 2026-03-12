@@ -7,7 +7,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
-import desloppify.languages as lang_api
+import desloppify.languages.framework as lang_api
 from desloppify.base.discovery.file_paths import rel, resolve_scan_file
 from desloppify.base.discovery.source import find_source_files
 from desloppify.base.output.fallbacks import (

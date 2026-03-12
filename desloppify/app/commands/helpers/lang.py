@@ -8,9 +8,9 @@ from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from desloppify import languages as lang_api
 from desloppify.base.discovery.paths import get_project_root
 from desloppify.base.exception_sets import CommandError
+from desloppify.languages import framework as lang_api
 
 if TYPE_CHECKING:
     from desloppify.languages.framework import LangConfig
