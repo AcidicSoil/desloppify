@@ -1,4 +1,4 @@
-"""Post-scan plan reconciliation — handle issue churn."""
+"""Post-scan reconciliation for stale or disappeared issue references."""
 
 from __future__ import annotations
 
@@ -11,10 +11,6 @@ from desloppify.engine._plan.operations.lifecycle import clear_focus_if_cluster_
 from desloppify.engine._plan.operations.meta import append_log_entry
 from desloppify.engine._plan.operations.skip import resurface_stale_skips
 from desloppify.engine._plan.promoted_ids import prune_promoted_ids
-from desloppify.engine._plan.reconcile_review_import import (
-    ReviewImportSyncResult,
-    sync_plan_after_review_import,
-)
 from desloppify.engine._plan.schema import (
     EPIC_PREFIX,
     PlanModel,
@@ -322,7 +318,5 @@ def reconcile_plan_after_scan(
 
 __all__ = [
     "ReconcileResult",
-    "ReviewImportSyncResult",
     "reconcile_plan_after_scan",
-    "sync_plan_after_review_import",
 ]

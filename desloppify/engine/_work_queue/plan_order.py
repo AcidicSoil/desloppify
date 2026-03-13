@@ -186,6 +186,7 @@ def _build_cluster_meta(
             cluster_data,
             detector=detector,
         ),
+        "execution_status": cluster_data.get("execution_status", "review"),
         "confidence": "high",
         "detector": detector,
         "file": "",

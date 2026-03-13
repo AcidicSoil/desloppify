@@ -17,7 +17,7 @@ from desloppify.engine._plan.operations.skip import (
     skip_items,
     unskip_items,
 )
-from desloppify.engine._plan.reconcile import reconcile_plan_after_scan
+from desloppify.engine._plan.scan_issue_reconcile import reconcile_plan_after_scan
 from desloppify.engine._plan.schema import empty_plan
 from desloppify.engine._plan.skip_policy import (
     skip_kind_needs_state_reopen,

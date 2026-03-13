@@ -232,12 +232,10 @@ def test_subjective_item_uses_show_review_when_matching_review_issues_exist():
     queue = build_work_queue(
         state, count=None, include_subjective=True, subjective_threshold=95
     )
-    subj = next(
-        item for item in queue["items"] if item["kind"] == "subjective_dimension"
-    )
-    assert subj["id"] == "subjective::mid_level_elegance"
-    assert subj["primary_command"] == "desloppify show review --status open"
-    assert subj["detail"]["open_review_issues"] == 1
+    item = queue["items"][0]
+    assert item["id"] == "review::.::holistic::mid_level_elegance::split"
+    assert item["kind"] == "issue"
+    assert all(entry["kind"] != "subjective_dimension" for entry in queue["items"])
 
 
 def test_stale_subjective_item_uses_show_review_when_matching_review_issues_exist():
@@ -274,12 +272,10 @@ def test_stale_subjective_item_uses_show_review_when_matching_review_issues_exis
     queue = build_work_queue(
         state, count=None, include_subjective=True, subjective_threshold=95
     )
-    subj = next(
-        item for item in queue["items"] if item["kind"] == "subjective_dimension"
-    )
-    assert "[stale — re-review]" in subj["summary"]
-    assert subj["primary_command"] == "desloppify show review --status open"
-    assert subj["detail"]["open_review_issues"] == 1
+    item = queue["items"][0]
+    assert item["id"] == "review::.::holistic::initialization_coupling::abc12345"
+    assert item["kind"] == "issue"
+    assert all(entry["kind"] != "subjective_dimension" for entry in queue["items"])
 
 
 def test_unassessed_subjective_item_points_to_holistic_refresh():

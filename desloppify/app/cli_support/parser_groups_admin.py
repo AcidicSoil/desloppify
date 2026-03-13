@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 
+from desloppify.app.commands.helpers.lang import load_lang_config
 from desloppify.languages.framework import get_lang
 from .parser_groups_admin_review import _add_review_parser  # noqa: F401 (re-export)
 
@@ -94,7 +95,7 @@ def _fixer_help_lines(langs: list[str]) -> list[str]:
     fixer_help_lines: list[str] = []
     for lang_name in langs:
         try:
-            fixer_names = sorted(get_lang(lang_name).fixers.keys())
+            fixer_names = sorted(load_lang_config(lang_name).fixers.keys())
         except (ImportError, ValueError, TypeError, AttributeError) as exc:
             logger.debug("Failed to load fixer metadata for %s: %s", lang_name, exc)
             fixer_help_lines.append(

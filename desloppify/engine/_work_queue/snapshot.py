@@ -8,15 +8,15 @@ from typing import Any
 
 from desloppify.base.config import DEFAULT_TARGET_STRICT_SCORE
 from desloppify.engine._plan.cluster_semantics import (
-    cluster_allows_ephemeral_execution,
+    cluster_is_active,
 )
 from desloppify.engine._plan.constants import (
     WORKFLOW_DEFERRED_DISPOSITION_ID,
     WORKFLOW_RUN_SCAN_ID,
 )
 from desloppify.engine._plan.schema import (
-    _tracked_plan_ids as _tracked_plan_ids,
     executable_objective_ids as _executable_objective_ids,
+    live_planned_queue_ids as _live_planned_queue_ids,
 )
 from desloppify.engine._plan.triage.snapshot import build_triage_snapshot
 from desloppify.engine._state.filtering import path_scoped_issues
@@ -120,21 +120,19 @@ def _assessment_request_items(items: Iterable[WorkQueueItem]) -> list[WorkQueueI
     ]
 
 
-def _auto_promoted_autofix_ids(plan: dict | None) -> set[str]:
-    """Return auto-cluster member IDs eligible to execute without manual promotion."""
+def _active_cluster_issue_ids(plan: dict | None) -> set[str]:
+    """Return issue IDs owned by clusters that are active planned work."""
     if not isinstance(plan, dict):
         return set()
-    autofix_ids: set[str] = set()
+    active_ids: set[str] = set()
     skipped_ids = set(plan.get("skipped", {}).keys())
     for cluster in plan.get("clusters", {}).values():
-        if not isinstance(cluster, dict):
-            continue
-        if not cluster_allows_ephemeral_execution(cluster):
+        if not isinstance(cluster, dict) or not cluster_is_active(cluster):
             continue
         for issue_id in cluster.get("issue_ids", []):
             if isinstance(issue_id, str) and issue_id and issue_id not in skipped_ids:
-                autofix_ids.add(issue_id)
-    return autofix_ids
+                active_ids.add(issue_id)
+    return active_ids
 
 
 def _merge_execution_candidates(
@@ -142,26 +140,22 @@ def _merge_execution_candidates(
     all_issue_items: list[WorkQueueItem],
     explicit_objective_items: list[WorkQueueItem],
     plan: dict | None,
-    skipped_ids: set[str],
     review_issue_ids: set[str],
-    executable_review_ids: set[str],
     assessment_request_ids: set[str],
 ) -> tuple[list[WorkQueueItem], list[WorkQueueItem]]:
-    """Merge plan-anchored and auto-promoted execution candidates."""
-    explicit_queue_ids = {
-        str(issue_id)
-        for issue_id in (plan or {}).get("queue_order", [])
-        if isinstance(issue_id, str) and issue_id
-    } - skipped_ids
-    auto_promoted_ids = _auto_promoted_autofix_ids(plan)
-    explicit_queue_ids |= auto_promoted_ids
+    """Merge queue-owned execution items with objective defaults."""
+    explicit_queue_ids = _live_planned_queue_ids(plan)
+    active_cluster_ids = _active_cluster_issue_ids(plan)
 
     queued_non_review_items = [
         item
         for item in all_issue_items
         if item.get("id", "") in explicit_queue_ids
         and item.get("id", "") not in assessment_request_ids
-        and item.get("id", "") not in review_issue_ids
+        and (
+            item.get("id", "") not in review_issue_ids
+            or item.get("id", "") in active_cluster_ids
+        )
     ]
 
     execution_candidates: list[WorkQueueItem] = []
@@ -173,11 +167,10 @@ def _merge_execution_candidates(
         seen_execution_ids.add(item_id)
         execution_candidates.append(item)
 
-    anchored_execution_ids = (_tracked_plan_ids(plan) | auto_promoted_ids) - skipped_ids
     anchored_execution_items = [
         item
         for item in execution_candidates
-        if item.get("id", "") in anchored_execution_ids
+        if item.get("id", "") in explicit_queue_ids
     ]
     return execution_candidates, anchored_execution_items
 
@@ -248,6 +241,7 @@ def _phase_for_snapshot(
     anchored_execution_items: list[WorkQueueItem],
     explicit_queue_items: list[WorkQueueItem],
     scan_items: list[WorkQueueItem],
+    review_backlog_present: bool,
     postflight_assessment_items: list[WorkQueueItem],
     postflight_review_items: list[WorkQueueItem],
     postflight_workflow_items: list[WorkQueueItem],
@@ -261,14 +255,14 @@ def _phase_for_snapshot(
         return PHASE_SCAN
     if explicit_queue_items:
         return PHASE_EXECUTE
+    if postflight_workflow_items:
+        return PHASE_WORKFLOW_POSTFLIGHT
+    if triage_items and (review_backlog_present or not postflight_assessment_items):
+        return PHASE_TRIAGE_POSTFLIGHT
     if postflight_review_items:
         return PHASE_REVIEW_POSTFLIGHT
     if postflight_assessment_items:
         return PHASE_ASSESSMENT_POSTFLIGHT
-    if postflight_workflow_items:
-        return PHASE_WORKFLOW_POSTFLIGHT
-    if triage_items:
-        return PHASE_TRIAGE_POSTFLIGHT
     return PHASE_SCAN
 
 
@@ -354,15 +348,12 @@ def build_queue_snapshot(
         review_issue_items,
     )
     review_issue_ids = {item.get("id", "") for item in review_issue_items}
-    executable_review_ids = {item.get("id", "") for item in executable_review_items}
     assessment_request_ids = {item.get("id", "") for item in assessment_request_items}
     explicit_queue_items, anchored_execution_items = _merge_execution_candidates(
         all_issue_items=all_issue_items,
         explicit_objective_items=explicit_objective_items,
         plan=effective_plan,
-        skipped_ids=skipped_ids,
         review_issue_ids=review_issue_ids,
-        executable_review_ids=executable_review_ids,
         assessment_request_ids=assessment_request_ids,
     )
     initial_review_items, subjective_postflight_items = _subjective_partitions(
@@ -389,6 +380,7 @@ def build_queue_snapshot(
         anchored_execution_items=anchored_execution_items,
         explicit_queue_items=explicit_queue_items,
         scan_items=scan_items,
+        review_backlog_present=bool(review_issue_items),
         postflight_assessment_items=postflight_assessment_items,
         postflight_review_items=postflight_review_items,
         postflight_workflow_items=postflight_workflow_items,

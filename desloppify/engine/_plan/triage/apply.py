@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from desloppify.engine._plan.cluster_semantics import EXECUTION_STATUS_ACTIVE
 from desloppify.engine._plan.policy.stale import review_issue_snapshot_hash
 from desloppify.engine._plan.schema import (
     EPIC_PREFIX,
@@ -68,6 +69,7 @@ def _update_existing_epic_cluster(
     existing["agent_safe"] = epic_data.get("agent_safe", False)
     existing["dependency_order"] = epic_data["dependency_order"]
     existing["action_steps"] = epic_data.get("action_steps", [])
+    existing["execution_status"] = EXECUTION_STATUS_ACTIVE
     existing["updated_at"] = now
     existing["triage_version"] = version
     existing["description"] = epic_data["thesis"]
@@ -90,6 +92,7 @@ def _create_epic_cluster(
         "auto": True,
         "cluster_key": f"epic::{epic_name}",
         "action": f"desloppify plan focus {epic_name}",
+        "execution_status": EXECUTION_STATUS_ACTIVE,
         "user_modified": False,
         "created_at": now,
         "updated_at": now,

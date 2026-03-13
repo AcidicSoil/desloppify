@@ -58,6 +58,7 @@ class QueueItemCommon(QueueItemBase, total=False):
     primary_command: str
     action_type: str
     execution_policy: str
+    execution_status: str
     explain: dict[str, Any]
 
     # Plan-order metadata

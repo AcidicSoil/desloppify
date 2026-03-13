@@ -9,7 +9,11 @@ from pathlib import Path
 from types import ModuleType
 
 from desloppify.languages import framework as lang_mod
-from desloppify.app.commands.helpers.lang import load_lang_config, resolve_lang
+from desloppify.app.commands.helpers.lang import (
+    load_lang_config,
+    load_lang_config_metadata,
+    resolve_lang,
+)
 from desloppify.base.exception_sets import CommandError
 
 logger = logging.getLogger(__name__)
@@ -19,7 +23,9 @@ def _build_ext_to_lang_map() -> dict[str, str]:
     """Build extension→language map from registered language configs."""
     ext_map: dict[str, str] = {}
     for lang_name in lang_mod.available_langs():
-        cfg = load_lang_config(lang_name)
+        cfg = load_lang_config_metadata(lang_name)
+        if cfg is None:
+            continue
         for ext in cfg.extensions:
             ext_map.setdefault(ext, lang_name)
     return ext_map

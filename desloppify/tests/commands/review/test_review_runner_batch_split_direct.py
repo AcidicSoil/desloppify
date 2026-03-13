@@ -168,13 +168,13 @@ def test_core_normalize_helpers_and_batch_normalization() -> None:
     aliased_judgment = core_normalize_mod._validate_dimension_judgment(
         "logic_clarity",
         {
-            "issue_character": "legacy alias still parses",
+            "dimension_character": "judgment character is required",
             "score_rationale": "y" * 60,
         },
         log_fn=lambda _msg: None,
     )
     assert aliased_judgment is not None
-    assert aliased_judgment["dimension_character"] == "legacy alias still parses"
+    assert aliased_judgment["dimension_character"] == "judgment character is required"
 
     quality = core_normalize_mod._compute_batch_quality(
         assessments={"naming_quality": 80.0},

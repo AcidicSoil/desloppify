@@ -1,4 +1,4 @@
-"""Plan sync helpers for review-import flows."""
+"""Review-import-specific queue sync helpers."""
 
 from __future__ import annotations
 
@@ -54,7 +54,8 @@ def _review_issue_ids_for_import_sync(
 def _is_review_queue_id(issue_id: str, state: StateModel) -> bool:
     """Return True for queue IDs representing triage findings.
 
-    Falls back to legacy ID prefixes only when the issue payload is absent.
+    Falls back to known review queue ID prefixes only when the issue payload
+    is absent.
     """
     issue = (state.get("work_items") or state.get("issues", {})).get(issue_id)
     if isinstance(issue, dict):
@@ -150,6 +151,7 @@ def sync_plan_after_review_import(
     state: StateModel,
     *,
     policy=None,
+    inject_triage: bool = True,
 ) -> ReviewImportSyncResult | None:
     """Sync plan queue after review import. Pure engine function — no I/O.
 
@@ -182,11 +184,14 @@ def sync_plan_after_review_import(
             order.append(issue_id)
             added.append(issue_id)
 
-    # Inject triage stages if needed (policy enables mid-cycle guard)
-    triage_result = sync_triage_needed(plan, state, policy=policy)
-    triage_injected_ids = list(getattr(triage_result, "injected", []) or [])
-    triage_injected = bool(triage_injected_ids)
-    triage_deferred = bool(triage_result and getattr(triage_result, "deferred", False))
+    triage_injected_ids: list[str] = []
+    triage_injected = False
+    triage_deferred = False
+    if inject_triage:
+        triage_result = sync_triage_needed(plan, state, policy=policy)
+        triage_injected_ids = list(getattr(triage_result, "injected", []) or [])
+        triage_injected = bool(triage_injected_ids)
+        triage_deferred = bool(triage_result and getattr(triage_result, "deferred", False))
 
     return ReviewImportSyncResult(
         new_ids=new_ids,

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from desloppify.engine._plan.operations.cluster import add_to_cluster, create_cluster
-from desloppify.engine._plan.reconcile import reconcile_plan_after_scan
+from desloppify.engine._plan.scan_issue_reconcile import reconcile_plan_after_scan
 from desloppify.engine._plan.schema import empty_plan, ensure_plan_defaults
 
 # ---------------------------------------------------------------------------

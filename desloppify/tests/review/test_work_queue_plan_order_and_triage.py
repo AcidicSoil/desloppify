@@ -626,7 +626,7 @@ def test_triage_stages_hidden_during_initial_reviews():
 
 
 def test_subjective_phase_precedes_score_and_triage_when_objective_drained():
-    """With no objective backlog, stale/under-target subjective reruns come first."""
+    """Workflow items stay ahead of subjective reruns once postflight begins."""
     state = _state(
         [],
         dimension_scores={
@@ -662,7 +662,7 @@ def test_subjective_phase_precedes_score_and_triage_when_objective_drained():
     }
     queue = build_work_queue(state, count=None, include_subjective=True, plan=plan)
     ids = [item["id"] for item in queue["items"]]
-    assert ids == ["subjective::naming_quality"]
+    assert ids == ["workflow::communicate-score"]
 
 
 def test_triage_stages_sort_after_workflow_in_natural_ranking():

@@ -124,15 +124,7 @@ def _validate_dimension_judgment(
         require_complete=False,
         log_fn=log_fn,
     )
-    issue_character = _normalize_dimension_judgment_text(
-        key,
-        raw.get("issue_character"),
-        field_name="issue_character",
-        require_complete=False,
-        log_fn=log_fn,
-    )
-    effective_dimension_character = dimension_character or issue_character
-    if require_complete and not effective_dimension_character:
+    if require_complete and not dimension_character:
         raise ValueError(
             f"dimension_judgment.{key} must include dimension_character"
         )
@@ -146,14 +138,14 @@ def _validate_dimension_judgment(
         min_length=50,
     )
 
-    if not effective_dimension_character and not score_rationale and not strengths:
+    if not dimension_character and not score_rationale and not strengths:
         return None
 
     result: BatchDimensionJudgmentPayload = {}
     if strengths:
         result["strengths"] = strengths
-    if effective_dimension_character:
-        result["dimension_character"] = effective_dimension_character
+    if dimension_character:
+        result["dimension_character"] = dimension_character
     if score_rationale:
         result["score_rationale"] = score_rationale
     return result

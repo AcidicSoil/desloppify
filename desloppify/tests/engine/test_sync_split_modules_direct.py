@@ -6,7 +6,9 @@ from types import SimpleNamespace
 
 import desloppify.engine._plan.auto_cluster_sync_issue as auto_cluster_sync_mod
 import desloppify.engine._plan.constants as plan_constants_mod
-import desloppify.engine._plan.reconcile_review_import as reconcile_import_mod
+import desloppify.engine._plan.sync as sync_pkg_mod
+import desloppify.engine._plan.scan_issue_reconcile as scan_reconcile_mod
+import desloppify.engine._plan.sync.review_import as reconcile_import_mod
 import desloppify.engine._plan.schema.helpers as schema_helpers_mod
 import desloppify.engine._plan.sync.auto_prune as sync_auto_prune_mod
 import desloppify.engine._plan.sync.context as sync_context_mod
@@ -227,6 +229,21 @@ def test_reconcile_review_import_prunes_stale_triage_recovery_metadata(
     assert plan["epic_triage_meta"]["active_triage_issue_ids"] == ["review::live"]
     assert plan["epic_triage_meta"]["undispositioned_issue_ids"] == ["review::live"]
     assert plan["epic_triage_meta"]["undispositioned_issue_count"] == 1
+
+
+def test_reconcile_module_exports_scan_reconcile_only() -> None:
+    assert scan_reconcile_mod.__all__ == [
+        "ReconcileResult",
+        "reconcile_plan_after_scan",
+    ]
+    assert not hasattr(scan_reconcile_mod, "sync_plan_after_review_import")
+    assert not hasattr(scan_reconcile_mod, "ReviewImportSyncResult")
+
+
+def test_sync_package_includes_review_import_subdomain() -> None:
+    assert "review_import" in sync_pkg_mod.__all__
+    assert hasattr(reconcile_import_mod, "sync_plan_after_review_import")
+    assert hasattr(reconcile_import_mod, "ReviewImportSyncResult")
 
 
 def test_schema_migration_helpers_cover_legacy_cleanup() -> None:
@@ -476,8 +493,7 @@ def test_sync_workflow_helpers_inject_expected_items(monkeypatch) -> None:
     r4 = sync_workflow_mod.sync_communicate_score_needed(
         plan,
         state,
-        policy=SimpleNamespace(unscored_ids={"subjective::x"}, has_objective_backlog=True),
-        scores_just_imported=True,
+        policy=SimpleNamespace(unscored_ids=set(), has_objective_backlog=True),
     )
     assert r4.injected == ["workflow::communicate-score"]
 
@@ -596,7 +612,7 @@ def test_pending_import_scores_meta_ignores_malformed_refresh_state() -> None:
     assert meta.packet_sha256 == "hash-from-audit"
 
 
-def test_sync_communicate_score_reinjects_after_trusted_score_import() -> None:
+def test_sync_communicate_score_reinjects_after_trusted_score_import_when_sentinel_cleared() -> None:
     plan = {
         "queue_order": ["triage::observe"],
         "plan_start_scores": {
@@ -605,13 +621,11 @@ def test_sync_communicate_score_reinjects_after_trusted_score_import() -> None:
             "objective": 80.0,
             "verified": 80.0,
         },
-        "previous_plan_start_scores": {"strict": 65.0},
     }
 
     result = sync_workflow_mod.sync_communicate_score_needed(
         plan,
         state={"issues": {}},
-        scores_just_imported=True,
         current_scores=sync_workflow_mod.ScoreSnapshot(
             strict=74.5,
             overall=74.5,
@@ -746,7 +760,7 @@ def test_queue_snapshot_keeps_executing_real_queue_items_before_postflight_scan(
     assert [item["id"] for item in snapshot.execution_items] == ["unused::a"]
 
 
-def test_queue_snapshot_allows_autofix_cluster_to_execute_without_manual_queueing() -> None:
+def test_queue_snapshot_does_not_execute_autofix_cluster_without_queue_ownership() -> None:
     state = {
         "issues": {
             "unused::a": {
@@ -777,12 +791,12 @@ def test_queue_snapshot_allows_autofix_cluster_to_execute_without_manual_queuein
 
     snapshot = snapshot_mod.build_queue_snapshot(state, plan=plan)
 
-    assert snapshot.phase == snapshot_mod.PHASE_EXECUTE
-    assert [item["id"] for item in snapshot.execution_items] == ["unused::a"]
-    assert "unused::a" not in {item["id"] for item in snapshot.backlog_items}
+    assert snapshot.phase == snapshot_mod.PHASE_SCAN
+    assert "unused::a" not in [item["id"] for item in snapshot.execution_items]
+    assert "unused::a" in {item["id"] for item in snapshot.backlog_items}
 
 
-def test_queue_snapshot_legacy_autofix_cluster_still_executes_via_normalized_semantics() -> None:
+def test_queue_snapshot_legacy_autofix_cluster_stays_backlog_without_queue_ownership() -> None:
     state = {
         "issues": {
             "unused::a": {
@@ -812,8 +826,9 @@ def test_queue_snapshot_legacy_autofix_cluster_still_executes_via_normalized_sem
 
     snapshot = snapshot_mod.build_queue_snapshot(state, plan=plan)
 
-    assert snapshot.phase == snapshot_mod.PHASE_EXECUTE
-    assert [item["id"] for item in snapshot.execution_items] == ["unused::a"]
+    assert snapshot.phase == snapshot_mod.PHASE_SCAN
+    assert "unused::a" not in [item["id"] for item in snapshot.execution_items]
+    assert "unused::a" in {item["id"] for item in snapshot.backlog_items}
 
 
 def test_queue_snapshot_non_autofix_auto_cluster_does_not_execute_without_queueing() -> None:

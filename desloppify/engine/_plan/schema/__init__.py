@@ -58,6 +58,7 @@ class Cluster(TypedDict, total=False):
     action: str | None  # Primary resolution command/guidance text
     action_type: str
     execution_policy: str
+    execution_status: str
     user_modified: bool  # True when user manually edits membership
     optional: bool
     thesis: str
@@ -325,6 +326,21 @@ def _tracked_plan_ids(plan: dict[str, Any] | None) -> set[str]:
     return tracked
 
 
+def live_planned_queue_ids(plan: dict[str, Any] | None) -> set[str]:
+    """Return substantive live queue IDs sourced only from ``queue_order``."""
+    if not isinstance(plan, dict):
+        return set()
+    skipped_ids = set(plan.get("skipped", {}).keys())
+    return {
+        str(issue_id)
+        for issue_id in plan.get("queue_order", [])
+        if isinstance(issue_id, str)
+        and issue_id
+        and issue_id not in skipped_ids
+        and not any(issue_id.startswith(prefix) for prefix in SYNTHETIC_PREFIXES)
+    }
+
+
 def executable_objective_ids(
     all_objective_ids: set[str],
     plan: dict[str, Any] | None,
@@ -338,26 +354,12 @@ def executable_objective_ids(
     """
     if not isinstance(plan, dict):
         return set(all_objective_ids)
-    tracked_ids = _tracked_plan_ids(plan)
     skipped_ids = set(plan.get("skipped", {}).keys())
-    tracked_objective_ids = tracked_ids & set(all_objective_ids)
-    queued_ids = {
-        issue_id
-        for issue_id in plan.get("queue_order", [])
-        if issue_id not in skipped_ids
-        and not any(issue_id.startswith(prefix) for prefix in SYNTHETIC_PREFIXES)
-    }
-    queued_objective_ids = all_objective_ids & queued_ids
-    has_active_plan_structure = bool(
-        plan.get("queue_order") or plan.get("clusters") or plan.get("overrides")
-    )
-    if not tracked_ids:
-        return set(all_objective_ids) - skipped_ids
-    if not tracked_objective_ids:
-        return set(all_objective_ids) - skipped_ids
+    live_queue_ids = live_planned_queue_ids(plan)
+    queued_objective_ids = all_objective_ids & live_queue_ids
     if queued_objective_ids:
         return queued_objective_ids
-    if not has_active_plan_structure:
+    if not live_queue_ids:
         return set(all_objective_ids) - skipped_ids
     return set()
 
@@ -412,6 +414,7 @@ __all__ = [
     "empty_plan",
     "ensure_plan_defaults",
     "executable_objective_ids",
+    "live_planned_queue_ids",
     "triage_clusters",
     "validate_plan",
 ]

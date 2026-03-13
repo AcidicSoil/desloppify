@@ -496,19 +496,19 @@ class TestConfigParser:
 
 
 class TestFixerHelpLines:
-    @patch("desloppify.app.cli_support.parser_groups_admin.get_lang")
-    def test_fixer_help_lines_with_fixers(self, mock_get_lang):
+    @patch("desloppify.app.cli_support.parser_groups_admin.load_lang_config")
+    def test_fixer_help_lines_with_fixers(self, mock_load_lang_config):
         mock_lang = MagicMock()
         mock_lang.fixers = {"unused": MagicMock(), "logs": MagicMock()}
-        mock_get_lang.return_value = mock_lang
+        mock_load_lang_config.return_value = mock_lang
 
         lines = parser_admin_mod._fixer_help_lines(["python"])
         assert len(lines) == 1  # one lang line
         assert "logs, unused" in lines[0]
 
-    @patch("desloppify.app.cli_support.parser_groups_admin.get_lang")
-    def test_fixer_help_lines_import_error(self, mock_get_lang):
-        mock_get_lang.side_effect = ImportError("no such lang")
+    @patch("desloppify.app.cli_support.parser_groups_admin.load_lang_config")
+    def test_fixer_help_lines_import_error(self, mock_load_lang_config):
+        mock_load_lang_config.side_effect = ImportError("no such lang")
 
         lines = parser_admin_mod._fixer_help_lines(["bogus"])
         assert "failed to load" in lines[0]

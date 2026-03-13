@@ -397,18 +397,15 @@ def sync_communicate_score_needed(
     state: StateModel,
     *,
     policy: SubjectiveVisibility | None = None,
-    scores_just_imported: bool = False,
     current_scores: ScoreSnapshot | None = None,
 ) -> QueueSyncResult:
     """Inject ``workflow::communicate-score`` and rebaseline scores.
 
     Injects when:
-    - All initial subjective reviews are complete (no unscored dims), OR
-      scores were just imported (trusted/attested/override)
+    - All initial subjective reviews are complete (no unscored dims)
     - ``workflow::communicate-score`` is not already in the queue
     - Score has not already been communicated this cycle
-      (``previous_plan_start_scores`` absent), unless a trusted score import
-      explicitly refreshed the live score mid-cycle
+      (``previous_plan_start_scores`` absent)
 
     When injected and *current_scores* is provided, ``plan_start_scores``
     is rebaselined to the current score so the score display unfreezes at
@@ -424,9 +421,9 @@ def sync_communicate_score_needed(
         return _EMPTY()
     # Already communicated this cycle — previous_plan_start_scores is set
     # at injection time and cleared at cycle boundaries.
-    if "previous_plan_start_scores" in plan and not scores_just_imported:
+    if "previous_plan_start_scores" in plan:
         return _EMPTY()
-    if not scores_just_imported and not _no_unscored(state, policy):
+    if not _no_unscored(state, policy):
         return _EMPTY()
 
     if current_scores is not None:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from desloppify.engine._plan.cluster_semantics import (
     ACTION_TYPE_MANUAL_FIX,
+    EXECUTION_STATUS_ACTIVE,
     EXECUTION_POLICY_PLANNED_ONLY,
 )
 from desloppify.engine._plan.operations.lifecycle import clear_focus_if_cluster_empty
@@ -85,6 +86,7 @@ def create_cluster(
         "action": action,
         "action_type": ACTION_TYPE_MANUAL_FIX,
         "execution_policy": EXECUTION_POLICY_PLANNED_ONLY,
+        "execution_status": EXECUTION_STATUS_ACTIVE,
         "user_modified": False,
     }
     plan["clusters"][name] = cluster
