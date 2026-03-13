@@ -25,6 +25,8 @@ Run ALL of the following (requires Python 3.11+):
 pip install --upgrade "desloppify[full]"
 desloppify update-skill claude    # installs the full workflow guide — pick yours: claude, cursor, codex, copilot, windsurf, gemini
 
+Add .desloppify/ to your .gitignore — it contains local state that shouldn't be committed.
+
 Before scanning, check for directories that should be excluded (vendor, build output,
 generated code, worktrees, etc.) and exclude obvious ones with `desloppify exclude <path>`.
 Share any questionable candidates with me before excluding.
