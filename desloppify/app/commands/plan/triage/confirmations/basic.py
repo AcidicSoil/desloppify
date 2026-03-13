@@ -31,6 +31,14 @@ def _find_referenced_names(text: str, names: list[str] | None) -> list[str]:
     ]
 
 
+def _contains_any(text: str, phrases: tuple[str, ...]) -> bool:
+    return any(phrase in text for phrase in phrases)
+
+
+def _count_phrase_hits(text: str, phrases: tuple[str, ...]) -> int:
+    return sum(1 for phrase in phrases if phrase in text)
+
+
 def _validate_observe_attestation(text: str, dimensions: list[str] | None) -> str | None:
     found = _find_referenced_names(text, dimensions)
     if found or not dimensions:
@@ -60,12 +68,34 @@ def _validate_cluster_attestation(
     *,
     cluster_names: list[str] | None,
     action: str,
+    stage: str,
 ) -> str | None:
     found = _find_referenced_names(text, cluster_names)
     if found or not cluster_names:
         return None
+    if stage == "organize":
+        if _contains_any(text, ("cluster", "clusters")) and _count_phrase_hits(
+            text,
+            ("priority", "priorities", "action step", "action steps", "description", "descriptions", "depends-on", "dependency", "dependencies", "issue", "issues", "consolidat"),
+        ) >= 2:
+            return None
+    elif stage == "enrich":
+        if _contains_any(text, ("step", "steps", "cluster", "clusters")) and _count_phrase_hits(
+            text,
+            ("executor-ready", "detail", "details", "file path", "file paths", "issue ref", "issue refs", "effort"),
+        ) >= 2:
+            return None
+    elif stage == "sense-check":
+        if _count_phrase_hits(
+            text,
+            ("content", "structure", "value", "cross-cluster", "dependency", "dependencies", "decision ledger", "enrich-level", "factually accurate"),
+        ) >= 2 and _contains_any(text, ("verified", "safe", "pass", "passes", "recorded", "checked")):
+            return None
     names = ", ".join(cluster_names[:6])
-    return f"Attestation must reference at least one cluster you {action}. Mention one of: {names}"
+    return (
+        f"Attestation must reference at least one cluster you {action}, or clearly describe the "
+        f"verified {stage} work product. Mention one of: {names}"
+    )
 
 
 def validate_attestation(
@@ -88,16 +118,19 @@ def validate_attestation(
             text,
             cluster_names=cluster_names,
             action="organized",
+            stage="organize",
         ),
         "enrich": lambda: _validate_cluster_attestation(
             text,
             cluster_names=cluster_names,
             action="enriched",
+            stage="enrich",
         ),
         "sense-check": lambda: _validate_cluster_attestation(
             text,
             cluster_names=cluster_names,
             action="sense-checked",
+            stage="sense-check",
         ),
     }
     validator = validators.get(stage)

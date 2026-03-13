@@ -53,7 +53,7 @@ def _validation_requirements(stage: str) -> str:
             "- Report must include a `## Decision Ledger` with one line per live queue target\n"
             "- Every live queue target must appear exactly once as keep, tighten, or skip\n"
             "- Report must cite real file paths to prove the code was re-read\n"
-            "- Stage must be confirmed with an 80+ char attestation mentioning cluster names\n"
+            "- Stage must be confirmed with an 80+ char attestation mentioning cluster names or clearly describing the verified sense-check work\n"
         )
     return ""
 

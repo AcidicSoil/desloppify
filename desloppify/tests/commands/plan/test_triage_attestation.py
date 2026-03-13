@@ -191,6 +191,33 @@ class TestValidateAttestation:
         )
         assert err is None
 
+    def test_validate_organize_accepts_substantive_work_product_without_cluster_name(self):
+        """Organize can pass without an exact cluster name when the attestation describes the organized work."""
+        err = validate_attestation(
+            "I organized all review issues into clusters with clear priority ordering, action steps, and dependency decisions grounded in the code.",
+            "organize",
+            cluster_names=["fix-naming", "reduce-coupling"],
+        )
+        assert err is None
+
+    def test_validate_enrich_accepts_substantive_work_product_without_cluster_name(self):
+        """Enrich can pass without an exact cluster name when executor-ready details are described."""
+        err = validate_attestation(
+            "The planned steps are executor-ready with concrete file paths, issue refs, detailed instructions, and effort tags verified against the codebase.",
+            "enrich",
+            cluster_names=["fix-naming", "reduce-coupling"],
+        )
+        assert err is None
+
+    def test_validate_sense_check_accepts_substantive_work_product_without_cluster_name(self):
+        """Sense-check can pass without an exact cluster name when the verification work is explicit."""
+        err = validate_attestation(
+            "I verified content and structure, checked cross-cluster dependencies, and confirmed value decisions are safe and accurately recorded.",
+            "sense-check",
+            cluster_names=["fix-naming", "reduce-coupling"],
+        )
+        assert err is None
+
     def test_validate_no_data_passes(self):
         """When no dimensions/clusters provided, validation passes (nothing to check)."""
         err = validate_attestation(

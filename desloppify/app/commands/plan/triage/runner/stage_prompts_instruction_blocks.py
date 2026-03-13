@@ -226,7 +226,7 @@ def _organize_instructions(mode: PromptMode = "self_record") -> str:
     tail = """\
 When done, run:
 ```
-desloppify plan triage --stage organize --report "<summary of priorities and organization>" --attestation "<80+ chars mentioning cluster names>"
+desloppify plan triage --stage organize --report "<summary of priorities and organization>" --attestation "<80+ chars mentioning cluster names or the organized work>"
 ```
 """
     if mode == "output_only":
@@ -300,7 +300,7 @@ def _enrich_instructions(mode: PromptMode = "self_record") -> str:
     tail = """\
 When done, run:
 ```
-desloppify plan triage --stage enrich --report "<enrichment summary>" --attestation "<80+ chars mentioning cluster names>"
+desloppify plan triage --stage enrich --report "<enrichment summary>" --attestation "<80+ chars mentioning cluster names or the executor-ready work>"
 ```
 """
     if mode == "output_only":
