@@ -10,6 +10,7 @@ import urllib.request as _urlreq
 
 from desloppify.base.config import load_config
 from desloppify.base.output.user_message import print_user_message
+from desloppify.engine._plan.refresh_lifecycle import user_facing_mode
 logger = logging.getLogger(__name__)
 
 # Phases that are NOT postflight — everything else counts as postflight.
@@ -103,7 +104,7 @@ def _switch_hermes_model(phase: str) -> bool:
         result = _hermes_send_message(f"/model {spec}", mode="interrupt")
         if result.get("success"):
             _hermes_send_message("continue", mode="queue")
-            print(f"🔄 Hermes model → {spec} (phase: {phase})")
+            print(f"🔄 Hermes model → {spec} (mode: {user_facing_mode(phase)})")
             return True
         else:
             logger.debug("Hermes model switch failed: %s", result.get("error", ""))
@@ -178,7 +179,7 @@ def emit_transition_message(new_phase: str) -> bool:
 
     clean = text.strip()
     print(f"\n{'─' * 60}")
-    print(f"TRANSITION INSTRUCTION — entering {new_phase} phase")
+    print(f"TRANSITION INSTRUCTION — entering {user_facing_mode(new_phase)} mode")
     print(clean)
     print(f"{'─' * 60}")
     print_user_message(f"Hey, did you see the above? Please act on this: {clean}")

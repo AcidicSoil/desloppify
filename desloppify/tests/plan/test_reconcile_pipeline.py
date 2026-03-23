@@ -191,7 +191,7 @@ def test_reconcile_plan_second_call_is_noop() -> None:
 
 
 def test_reconcile_plan_holds_workflow_until_current_scan_subjective_review_completes() -> None:
-    """Postflight review must run before communicate-score/create-plan."""
+    """Postflight review must run before score checkpointing and create-plan."""
     state = {
         "issues": {"unused::a": _issue("unused::a")},
         "scan_count": 19,
@@ -229,12 +229,12 @@ def test_reconcile_plan_holds_workflow_until_current_scan_subjective_review_comp
 
     result = reconcile_plan(plan, state, target_strict=95.0)
 
-    assert WORKFLOW_COMMUNICATE_SCORE_ID in plan["queue_order"]
     assert WORKFLOW_CREATE_PLAN_ID in plan["queue_order"]
-    assert result.workflow_injected_ids == [
-        WORKFLOW_COMMUNICATE_SCORE_ID,
-        WORKFLOW_CREATE_PLAN_ID,
-    ]
+    assert WORKFLOW_COMMUNICATE_SCORE_ID not in plan["queue_order"]
+    assert result.communicate_score is not None
+    assert result.communicate_score.auto_resolved == [WORKFLOW_COMMUNICATE_SCORE_ID]
+    assert result.workflow_injected_ids == [WORKFLOW_CREATE_PLAN_ID]
+    assert plan["previous_plan_start_scores"] == {}
 
 
 def test_stale_subjective_phase_beats_queued_workflow() -> None:

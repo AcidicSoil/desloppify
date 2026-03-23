@@ -92,6 +92,13 @@ def _touches_objective_issue(
     return objective_seen
 
 
+def user_facing_mode(display_phase: str) -> str:
+    """Collapse internal display phases into the user-facing mode label."""
+    if display_phase == LIFECYCLE_PHASE_EXECUTE:
+        return "execute"
+    return "plan"
+
+
 def current_lifecycle_phase(plan: PlanModel) -> str:
     """Return the persisted lifecycle mode: ``"plan"`` or ``"execute"``.
 
@@ -232,4 +239,5 @@ __all__ = [
     "postflight_scan_pending",
     "set_lifecycle_phase",
     "subjective_review_completed_for_scan",
+    "user_facing_mode",
 ]

@@ -24,6 +24,7 @@ from desloppify.engine._plan.refresh_lifecycle import (
     LIFECYCLE_PHASE_WORKFLOW_POSTFLIGHT,
     current_lifecycle_phase,
     set_lifecycle_phase,
+    user_facing_mode,
 )
 from desloppify.engine._plan.sync.dimensions import sync_subjective_dimensions
 from desloppify.engine._plan.sync.phase_cleanup import prune_synthetic_for_phase
@@ -150,9 +151,7 @@ def _resolve_reconcile_display_phase(
 
 def _display_phase_to_mode(display_phase: str) -> str:
     """Map a display phase to the persisted mode ("plan" or "execute")."""
-    if display_phase == LIFECYCLE_PHASE_EXECUTE:
-        return "execute"
-    return "plan"
+    return user_facing_mode(display_phase)
 
 
 _MIGRATION_PRUNED_KEY = "_subjective_migration_pruned"
@@ -248,7 +247,7 @@ def reconcile_plan(
             current_scores=_current_scores(state),
         )
         if result.communicate_score.changes:
-            _log_gate_changes(plan, "sync_communicate_score", {"injected": True})
+            _log_gate_changes(plan, "sync_communicate_score", {"auto_resolved": True})
 
         result.create_plan = sync_create_plan_needed(
             plan,
