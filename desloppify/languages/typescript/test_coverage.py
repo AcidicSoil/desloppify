@@ -24,6 +24,7 @@ ASSERT_PATTERNS = [
     for p in [
         r"expect\(",
         r"assert\.",
+        r"\bassert(?:[A-Z]\w*)?\(",
         r"\.should\.",
         r"\b(?:getBy|findBy|getAllBy|findAllBy)\w+\(",
         r"\bwaitFor\(",
